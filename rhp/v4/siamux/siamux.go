@@ -8,9 +8,9 @@ import (
 	"net"
 	"time"
 
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
-	rhp4 "go.sia.tech/coreutils/rhp/v4"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
+	rhp4 "go.thebigfile.com/coreutils/rhp/v4"
 	"go.sia.tech/mux"
 	"go.uber.org/zap"
 )

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
 )
 
 type (

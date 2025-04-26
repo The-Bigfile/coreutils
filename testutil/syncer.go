@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"go.sia.tech/coreutils/syncer"
+	"go.thebigfile.com/coreutils/syncer"
 )
 
 // A EphemeralPeerStore is an in-memory implementation of a PeerStore.

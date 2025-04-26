@@ -9,9 +9,9 @@ import (
 	"net"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	rhp4 "go.sia.tech/core/rhp/v4"
-	"go.sia.tech/core/types"
+	"go.thebigfile.com/core/consensus"
+	rhp4 "go.thebigfile.com/core/rhp/v4"
+	"go.thebigfile.com/core/types"
 	"lukechampine.com/frand"
 )
 

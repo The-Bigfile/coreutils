@@ -4,7 +4,7 @@ import (
 	"iter"
 
 	"go.etcd.io/bbolt"
-	"go.sia.tech/coreutils/chain"
+	"go.thebigfile.com/coreutils/chain"
 )
 
 type boltBucket struct {

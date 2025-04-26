@@ -3,9 +3,9 @@ package coreutils
 import (
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
 )
 
 // FindBlockNonce attempts to find a nonce for b that meets the PoW target.
