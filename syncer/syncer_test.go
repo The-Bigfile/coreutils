@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"go.sia.tech/core/gateway"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
-	"go.sia.tech/coreutils/syncer"
-	"go.sia.tech/coreutils/testutil"
-	"go.sia.tech/coreutils/threadgroup"
+	"go.thebigfile.com/core/gateway"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
+	"go.thebigfile.com/coreutils/syncer"
+	"go.thebigfile.com/coreutils/testutil"
+	"go.thebigfile.com/coreutils/threadgroup"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )

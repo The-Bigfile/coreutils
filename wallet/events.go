@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"go.sia.tech/core/types"
+	"go.thebigfile.com/core/types"
 )
 
 // event types indicate the source of an event. Events can
