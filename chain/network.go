@@ -21,8 +21,8 @@ func Mainnet() (*consensus.Network, types.Block) {
 	n := &consensus.Network{
 		Name: "mainnet",
 
-		InitialCoinbase: types.Siacoins(300000),
-		MinimumCoinbase: types.Siacoins(30000),
+		InitialCoinbase: types.BigFiles(300000),
+		MinimumCoinbase: types.BigFiles(30000),
 		InitialTarget:   types.BlockID{4: 32},
 		BlockInterval:   10 * time.Minute,
 		MaturityDelay:   144,
@@ -114,8 +114,8 @@ func TestnetZen() (*consensus.Network, types.Block) {
 	n := &consensus.Network{
 		Name: "zen",
 
-		InitialCoinbase: types.Siacoins(300000),
-		MinimumCoinbase: types.Siacoins(300000),
+		InitialCoinbase: types.BigFiles(300000),
+		MinimumCoinbase: types.BigFiles(300000),
 		InitialTarget:   types.BlockID{3: 1},
 		BlockInterval:   10 * time.Minute,
 		MaturityDelay:   144,
@@ -147,9 +147,9 @@ func TestnetZen() (*consensus.Network, types.Block) {
 	b := types.Block{
 		Timestamp: n.HardforkOak.GenesisTimestamp,
 		Transactions: []types.Transaction{{
-			SiacoinOutputs: []types.SiacoinOutput{{
+			BigFileOutputs: []types.BigFileOutput{{
 				Address: parseAddr("3d7f707d05f2e0ec7ccc9220ed7c8af3bc560fbee84d068c2cc28151d617899e1ee8bc069946"),
-				Value:   types.Siacoins(1).Mul64(1e12),
+				Value:   types.BigFiles(1).Mul64(1e12),
 			}},
 			SiafundOutputs: []types.SiafundOutput{{
 				Address: parseAddr("053b2def3cbdd078c19d62ce2b4f0b1a3c5e0ffbeeff01280efb1f8969b2f5bb4fdc680f0807"),
@@ -176,9 +176,9 @@ func TestnetAnagami() (*consensus.Network, types.Block) {
 	n.HardforkFoundation.FailsafeAddress = types.VoidAddress
 
 	// move the genesis airdrops for easier testing
-	genesis.Transactions[0].SiacoinOutputs = []types.SiacoinOutput{{
+	genesis.Transactions[0].BigFileOutputs = []types.BigFileOutput{{
 		Address: parseAddr("241352c83da002e61f57e96b14f3a5f8b5de22156ce83b753ea495e64f1affebae88736b2347"),
-		Value:   types.Siacoins(1).Mul64(1e12),
+		Value:   types.BigFiles(1).Mul64(1e12),
 	}}
 	genesis.Transactions[0].SiafundOutputs = []types.SiafundOutput{{
 		Address: parseAddr("241352c83da002e61f57e96b14f3a5f8b5de22156ce83b753ea495e64f1affebae88736b2347"),
@@ -202,9 +202,9 @@ func TestnetErravimus() (*consensus.Network, types.Block) {
 	n.HardforkFoundation.FailsafeAddress = types.VoidAddress
 
 	// move the genesis airdrops for easier testing
-	genesis.Transactions[0].SiacoinOutputs = []types.SiacoinOutput{{
+	genesis.Transactions[0].BigFileOutputs = []types.BigFileOutput{{
 		Address: parseAddr("241352c83da002e61f57e96b14f3a5f8b5de22156ce83b753ea495e64f1affebae88736b2347"),
-		Value:   types.Siacoins(1).Mul64(1e12),
+		Value:   types.BigFiles(1).Mul64(1e12),
 	}}
 	genesis.Transactions[0].SiafundOutputs = []types.SiafundOutput{{
 		Address: parseAddr("241352c83da002e61f57e96b14f3a5f8b5de22156ce83b753ea495e64f1affebae88736b2347"),

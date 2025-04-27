@@ -32,7 +32,7 @@ func TestExpiringFileContracts(t *testing.T) {
 	// create two file contracts with the same expiration height
 	b := types.Block{
 		ParentID:     cs.Index.ID,
-		MinerPayouts: []types.SiacoinOutput{{Value: cs.BlockReward()}},
+		MinerPayouts: []types.BigFileOutput{{Value: cs.BlockReward()}},
 		Transactions: []types.Transaction{{
 			FileContracts: []types.FileContract{
 				{FileMerkleRoot: frand.Entropy256(), WindowEnd: 2},
@@ -50,7 +50,7 @@ func TestExpiringFileContracts(t *testing.T) {
 	// apply another block, causing the expired contracts to be removed
 	b = types.Block{
 		ParentID:     cs.Index.ID,
-		MinerPayouts: []types.SiacoinOutput{{Value: cs.BlockReward()}},
+		MinerPayouts: []types.BigFileOutput{{Value: cs.BlockReward()}},
 	}
 	bs = store.SupplementTipBlock(b)
 	if len(bs.ExpiringFileContracts) != 2 {

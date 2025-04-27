@@ -12,7 +12,7 @@ type (
 	// A ChainUpdate is an interface for iterating over the elements in a chain
 	// update.
 	ChainUpdate interface {
-		ForEachSiacoinElement(func(sce types.SiacoinElement, spent bool))
+		ForEachBigFileElement(func(sce types.BigFileElement, spent bool))
 		ForEachSiafundElement(func(sfe types.SiafundElement, spent bool))
 		ForEachFileContractElement(func(fce types.FileContractElement, rev *types.FileContractElement, resolved, valid bool))
 		ForEachV2FileContractElement(func(fce types.V2FileContractElement, rev *types.V2FileContractElement, res types.V2FileContractResolutionType))
@@ -26,41 +26,41 @@ type (
 	// UpdateTx is an interface for atomically applying chain updates to a
 	// single address wallet.
 	UpdateTx interface {
-		// UpdateWalletSiacoinElementProofs updates the proofs of all state elements
+		// UpdateWalletBigFileElementProofs updates the proofs of all state elements
 		// affected by the update. ProofUpdater.UpdateElementProof must be called
 		// for each state element in the database.
-		UpdateWalletSiacoinElementProofs(ProofUpdater) error
+		UpdateWalletBigFileElementProofs(ProofUpdater) error
 
 		// WalletApplyIndex is called with the chain index that is being applied.
-		// Any transactions and siacoin elements that were created by the index
-		// should be added and any siacoin elements that were spent should be
+		// Any transactions and bigfile elements that were created by the index
+		// should be added and any bigfile elements that were spent should be
 		// removed.
 		//
 		// timestamp is the timestamp of the block being applied.
-		WalletApplyIndex(index types.ChainIndex, created, spent []types.SiacoinElement, events []Event, timestamp time.Time) error
+		WalletApplyIndex(index types.ChainIndex, created, spent []types.BigFileElement, events []Event, timestamp time.Time) error
 		// WalletRevertIndex is called with the chain index that is being reverted.
 		// Any transactions that were added by the index should be removed
 		//
-		// removed contains the siacoin elements that were created by the index
+		// removed contains the bigfile elements that were created by the index
 		// and should be deleted.
 		//
-		// unspent contains the siacoin elements that were spent and should be
+		// unspent contains the bigfile elements that were spent and should be
 		// recreated. They are not necessarily created by the index and should
 		// not be associated with it.
 		//
 		// timestamp is the timestamp of the block being reverted
-		WalletRevertIndex(index types.ChainIndex, removed, unspent []types.SiacoinElement, timestamp time.Time) error
+		WalletRevertIndex(index types.ChainIndex, removed, unspent []types.BigFileElement, timestamp time.Time) error
 	}
 )
 
 // relevantV1Txn returns true if the transaction is relevant to the provided address
 func relevantV1Txn(txn types.Transaction, addr types.Address) bool {
-	for _, so := range txn.SiacoinOutputs {
+	for _, so := range txn.BigFileOutputs {
 		if so.Address == addr {
 			return true
 		}
 	}
-	for _, si := range txn.SiacoinInputs {
+	for _, si := range txn.BigFileInputs {
 		if si.UnlockConditions.UnlockHash() == addr {
 			return true
 		}
@@ -69,13 +69,13 @@ func relevantV1Txn(txn types.Transaction, addr types.Address) bool {
 }
 
 func relevantV2Txn(txn types.V2Transaction, addr types.Address) bool {
-	for _, so := range txn.SiacoinOutputs {
+	for _, so := range txn.BigFileOutputs {
 		if so.Address == addr {
 			return true
 		}
 	}
-	for _, si := range txn.SiacoinInputs {
-		if si.Parent.SiacoinOutput.Address == addr {
+	for _, si := range txn.BigFileInputs {
+		if si.Parent.BigFileOutput.Address == addr {
 			return true
 		}
 	}
@@ -88,12 +88,12 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 	cs := cau.State
 	block := cau.Block
 	index := cs.Index
-	siacoinElements := make(map[types.SiacoinOutputID]types.SiacoinElement)
+	siacoinElements := make(map[types.BigFileOutputID]types.BigFileElement)
 
-	// cache the value of siacoin elements to use when calculating v1 outflow
-	for _, sced := range cau.SiacoinElementDiffs() {
-		sced.SiacoinElement.StateElement.MerkleProof = nil // clear the proof to save space
-		siacoinElements[sced.SiacoinElement.ID] = sced.SiacoinElement.Move()
+	// cache the value of bigfile elements to use when calculating v1 outflow
+	for _, sced := range cau.BigFileElementDiffs() {
+		sced.BigFileElement.StateElement.MerkleProof = nil // clear the proof to save space
+		siacoinElements[sced.BigFileElement.ID] = sced.BigFileElement.Move()
 	}
 
 	addEvent := func(id types.Hash256, eventType string, data EventData, maturityHeight uint64) {
@@ -107,7 +107,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 			Relevant:       []types.Address{walletAddress},
 		}
 
-		if ev.SiacoinInflow().Equals(ev.SiacoinOutflow()) {
+		if ev.BigFileInflow().Equals(ev.BigFileOutflow()) {
 			// skip events that don't affect the wallet
 			return
 		}
@@ -123,11 +123,11 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 				outputID := si.ParentID.ClaimOutputID()
 				sce, ok := siacoinElements[outputID]
 				if !ok {
-					panic("missing claim siacoin element")
+					panic("missing claim bigfile element")
 				}
 
 				addEvent(types.Hash256(outputID), EventTypeSiafundClaim, EventPayout{
-					SiacoinElement: sce.Copy(),
+					BigFileElement: sce.Copy(),
 				}, sce.MaturityHeight)
 			}
 		}
@@ -136,14 +136,14 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 			Transaction: txn,
 		}
 
-		for _, si := range txn.SiacoinInputs {
-			se, ok := siacoinElements[types.SiacoinOutputID(si.ParentID)]
+		for _, si := range txn.BigFileInputs {
+			se, ok := siacoinElements[types.BigFileOutputID(si.ParentID)]
 			if !ok {
-				panic("missing transaction siacoin element")
-			} else if se.SiacoinOutput.Address != walletAddress {
+				panic("missing transaction bigfile element")
+			} else if se.BigFileOutput.Address != walletAddress {
 				continue
 			}
-			event.SpentSiacoinElements = append(event.SpentSiacoinElements, se.Copy())
+			event.SpentBigFileElements = append(event.SpentBigFileElements, se.Copy())
 		}
 		addEvent(types.Hash256(txn.ID()), EventTypeV1Transaction, event, index.Height)
 	}
@@ -157,11 +157,11 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 				outputID := types.SiafundOutputID(si.Parent.ID).V2ClaimOutputID()
 				sce, ok := siacoinElements[outputID]
 				if !ok {
-					panic("missing claim siacoin element")
+					panic("missing claim bigfile element")
 				}
 
 				addEvent(types.Hash256(outputID), EventTypeSiafundClaim, EventPayout{
-					SiacoinElement: sce.Copy(),
+					BigFileElement: sce.Copy(),
 				}, sce.MaturityHeight)
 			}
 		}
@@ -186,12 +186,12 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 				outputID := fce.ID.ValidOutputID(i)
 				sce, ok := siacoinElements[outputID]
 				if !ok {
-					panic("missing siacoin element")
+					panic("missing bigfile element")
 				}
 
 				addEvent(types.Hash256(outputID), EventTypeV1ContractResolution, EventV1ContractResolution{
 					Parent:         fce.Copy(),
-					SiacoinElement: sce.Copy(),
+					BigFileElement: sce.Copy(),
 					Missed:         false,
 				}, sce.MaturityHeight)
 			}
@@ -204,12 +204,12 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 				outputID := fce.ID.MissedOutputID(i)
 				sce, ok := siacoinElements[outputID]
 				if !ok {
-					panic("missing siacoin element")
+					panic("missing bigfile element")
 				}
 
 				addEvent(types.Hash256(outputID), EventTypeV1ContractResolution, EventV1ContractResolution{
 					Parent:         fce.Copy(),
-					SiacoinElement: sce.Copy(),
+					BigFileElement: sce.Copy(),
 					Missed:         true,
 				}, sce.MaturityHeight)
 			}
@@ -228,7 +228,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 			outputID := fce.ID.V2HostOutputID()
 			sce, ok := siacoinElements[outputID]
 			if !ok {
-				panic("missing siacoin element")
+				panic("missing bigfile element")
 			}
 
 			addEvent(types.Hash256(outputID), EventTypeV2ContractResolution, EventV2ContractResolution{
@@ -236,7 +236,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 					Parent:     fce.Copy(),
 					Resolution: fced.Resolution,
 				},
-				SiacoinElement: sce.Copy(),
+				BigFileElement: sce.Copy(),
 				Missed:         missed,
 			}, sce.MaturityHeight)
 		}
@@ -245,7 +245,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 			outputID := fce.ID.V2RenterOutputID()
 			sce, ok := siacoinElements[outputID]
 			if !ok {
-				panic("missing siacoin element")
+				panic("missing bigfile element")
 			}
 
 			addEvent(types.Hash256(outputID), EventTypeV2ContractResolution, EventV2ContractResolution{
@@ -253,7 +253,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 					Parent:     fce.Copy(),
 					Resolution: fced.Resolution,
 				},
-				SiacoinElement: sce.Copy(),
+				BigFileElement: sce.Copy(),
 				Missed:         missed,
 			}, sce.MaturityHeight)
 		}
@@ -268,17 +268,17 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		outputID := blockID.MinerOutputID(i)
 		sce, ok := siacoinElements[outputID]
 		if !ok {
-			panic("missing siacoin element")
+			panic("missing bigfile element")
 		}
 		addEvent(types.Hash256(outputID), EventTypeMinerPayout, EventPayout{
-			SiacoinElement: sce.Copy(),
+			BigFileElement: sce.Copy(),
 		}, sce.MaturityHeight)
 	}
 
 	outputID := blockID.FoundationOutputID()
-	if sce, ok := siacoinElements[outputID]; ok && sce.SiacoinOutput.Address == walletAddress {
+	if sce, ok := siacoinElements[outputID]; ok && sce.BigFileOutput.Address == walletAddress {
 		addEvent(types.Hash256(outputID), EventTypeFoundationSubsidy, EventPayout{
-			SiacoinElement: sce.Copy(),
+			BigFileElement: sce.Copy(),
 		}, sce.MaturityHeight)
 	}
 	return
@@ -287,23 +287,23 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 // applyChainUpdate atomically applies a chain update
 func (sw *SingleAddressWallet) applyChainUpdate(tx UpdateTx, address types.Address, cau chain.ApplyUpdate) error {
 	// update current state elements
-	if err := tx.UpdateWalletSiacoinElementProofs(cau); err != nil {
+	if err := tx.UpdateWalletBigFileElementProofs(cau); err != nil {
 		return fmt.Errorf("failed to update state elements: %w", err)
 	}
 
-	var createdUTXOs, spentUTXOs []types.SiacoinElement
-	for _, sced := range cau.SiacoinElementDiffs() {
+	var createdUTXOs, spentUTXOs []types.BigFileElement
+	for _, sced := range cau.BigFileElementDiffs() {
 		switch {
 		case sced.Created && sced.Spent:
 			continue // ignore ephemeral elements
-		case sced.SiacoinElement.SiacoinOutput.Address != address:
+		case sced.BigFileElement.BigFileOutput.Address != address:
 			continue // ignore elements that are not related to the wallet
 		case sced.Created:
-			createdUTXOs = append(createdUTXOs, sced.SiacoinElement.Share())
+			createdUTXOs = append(createdUTXOs, sced.BigFileElement.Share())
 		case sced.Spent:
-			spentUTXOs = append(spentUTXOs, sced.SiacoinElement.Share())
+			spentUTXOs = append(spentUTXOs, sced.BigFileElement.Share())
 		default:
-			panic("unexpected siacoin element") // developer error
+			panic("unexpected bigfile element") // developer error
 		}
 	}
 
@@ -318,19 +318,19 @@ func (sw *SingleAddressWallet) applyChainUpdate(tx UpdateTx, address types.Addre
 
 // revertChainUpdate atomically reverts a chain update from a wallet
 func (sw *SingleAddressWallet) revertChainUpdate(tx UpdateTx, revertedIndex types.ChainIndex, address types.Address, cru chain.RevertUpdate) error {
-	var removedUTXOs, unspentUTXOs []types.SiacoinElement
-	for _, sced := range cru.SiacoinElementDiffs() {
+	var removedUTXOs, unspentUTXOs []types.BigFileElement
+	for _, sced := range cru.BigFileElementDiffs() {
 		switch {
 		case sced.Created && sced.Spent:
 			continue // ignore ephemeral elements
-		case sced.SiacoinElement.SiacoinOutput.Address != address:
+		case sced.BigFileElement.BigFileOutput.Address != address:
 			continue // ignore elements that are not related to the wallet
 		case sced.Spent:
-			unspentUTXOs = append(unspentUTXOs, sced.SiacoinElement.Share())
+			unspentUTXOs = append(unspentUTXOs, sced.BigFileElement.Share())
 		case sced.Created:
-			removedUTXOs = append(removedUTXOs, sced.SiacoinElement.Share())
+			removedUTXOs = append(removedUTXOs, sced.BigFileElement.Share())
 		default:
-			panic("unexpected siacoin element") // developer error
+			panic("unexpected bigfile element") // developer error
 		}
 	}
 
@@ -340,7 +340,7 @@ func (sw *SingleAddressWallet) revertChainUpdate(tx UpdateTx, revertedIndex type
 	}
 
 	// update the remaining state elements
-	if err := tx.UpdateWalletSiacoinElementProofs(cru); err != nil {
+	if err := tx.UpdateWalletBigFileElementProofs(cru); err != nil {
 		return fmt.Errorf("failed to update state elements: %w", err)
 	}
 	sw.mu.Lock()

@@ -15,10 +15,10 @@ func TestMiner(t *testing.T) {
 
 	sk := types.GeneratePrivateKey()
 	genesisBlock.Transactions = []types.Transaction{{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{
 				Address: types.StandardUnlockHash(sk.PublicKey()),
-				Value:   types.Siacoins(10),
+				Value:   types.BigFiles(10),
 			},
 		},
 	}}
@@ -31,19 +31,19 @@ func TestMiner(t *testing.T) {
 
 	// create a transaction
 	txn := types.Transaction{
-		SiacoinInputs: []types.SiacoinInput{{
-			ParentID:         genesisBlock.Transactions[0].SiacoinOutputID(0),
+		BigFileInputs: []types.BigFileInput{{
+			ParentID:         genesisBlock.Transactions[0].BigFileOutputID(0),
 			UnlockConditions: types.StandardUnlockConditions(sk.PublicKey()),
 		}},
-		SiacoinOutputs: []types.SiacoinOutput{{
+		BigFileOutputs: []types.BigFileOutput{{
 			Address: types.StandardUnlockHash(sk.PublicKey()),
-			Value:   types.Siacoins(9),
+			Value:   types.BigFiles(9),
 		}},
-		MinerFees: []types.Currency{types.Siacoins(1)},
+		MinerFees: []types.Currency{types.BigFiles(1)},
 	}
 
 	// sign the inputs
-	for _, sci := range txn.SiacoinInputs {
+	for _, sci := range txn.BigFileInputs {
 		sig := sk.SignHash(cm.TipState().WholeSigHash(txn, types.Hash256(sci.ParentID), 0, 0, nil))
 		txn.Signatures = append(txn.Signatures, types.TransactionSignature{
 			ParentID:       types.Hash256(sci.ParentID),
@@ -65,7 +65,7 @@ func TestMiner(t *testing.T) {
 		t.Fatal("PoW failed")
 	} else if len(b.MinerPayouts) != 1 {
 		t.Fatal("expected one miner payout")
-	} else if b.MinerPayouts[0].Value.Cmp(types.Siacoins(1).Add(cm.TipState().BlockReward())) != 0 {
+	} else if b.MinerPayouts[0].Value.Cmp(types.BigFiles(1).Add(cm.TipState().BlockReward())) != 0 {
 		t.Fatal("unexpected miner payout", b.MinerPayouts[0].Value.ExactString())
 	}
 }
@@ -77,10 +77,10 @@ func TestV2MineBlocks(t *testing.T) {
 	n.InitialTarget = types.BlockID{0xFF}
 
 	genesisBlock.Transactions = []types.Transaction{{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{
 				Address: types.AnyoneCanSpend().Address(),
-				Value:   types.Siacoins(10),
+				Value:   types.BigFiles(10),
 			},
 		},
 	}}
@@ -105,15 +105,15 @@ func TestV2MineBlocks(t *testing.T) {
 	// mine until just before the allow height
 	mineBlocks(t, 4)
 
-	elements := make(map[types.SiacoinOutputID]types.SiacoinElement)
+	elements := make(map[types.BigFileOutputID]types.BigFileElement)
 	_, applied, err := cm.UpdatesSince(types.ChainIndex{}, 500)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, cau := range applied {
-		for _, sced := range cau.SiacoinElementDiffs() {
-			sce := sced.SiacoinElement
-			if sce.SiacoinOutput.Address == types.AnyoneCanSpend().Address() {
+		for _, sced := range cau.BigFileElementDiffs() {
+			sce := sced.BigFileElement
+			if sce.BigFileOutput.Address == types.AnyoneCanSpend().Address() {
 				if sced.Created {
 					elements[sce.ID] = sce
 				}
@@ -128,15 +128,15 @@ func TestV2MineBlocks(t *testing.T) {
 		}
 	}
 
-	var se types.SiacoinElement
+	var se types.BigFileElement
 	for _, v := range elements {
 		se = v
 		break
 	}
 
 	txn := types.V2Transaction{
-		MinerFee: se.SiacoinOutput.Value,
-		SiacoinInputs: []types.V2SiacoinInput{{
+		MinerFee: se.BigFileOutput.Value,
+		BigFileInputs: []types.V2BigFileInput{{
 			Parent:          se,
 			SatisfiedPolicy: types.SatisfiedPolicy{Policy: types.AnyoneCanSpend()},
 		}},
