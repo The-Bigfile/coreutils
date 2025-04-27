@@ -9,7 +9,7 @@ require (
 	github.com/quic-go/webtransport-go v0.8.1-0.20241018022711-4ac2c9250e66
 	go.etcd.io/bbolt v1.4.0
 	go.sia.tech/mux v1.4.0
-	go.thebigfile.com/core v0.0.3
+	go.thebigfile.com/core v0.0.4
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.37.0
 	lukechampine.com/frand v1.5.1
