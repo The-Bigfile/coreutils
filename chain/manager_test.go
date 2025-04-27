@@ -36,7 +36,7 @@ func TestManager(t *testing.T) {
 			b := types.Block{
 				ParentID:  cs.Index.ID,
 				Timestamp: types.CurrentTimestamp(),
-				MinerPayouts: []types.SiacoinOutput{{
+				MinerPayouts: []types.BigFileOutput{{
 					Value:   cs.BlockReward(),
 					Address: types.Address(frand.Entropy256()),
 				}},
@@ -111,9 +111,9 @@ func TestTxPool(t *testing.T) {
 	giftPrivateKey := types.GeneratePrivateKey()
 	giftPublicKey := giftPrivateKey.PublicKey()
 	giftAddress := types.StandardUnlockHash(giftPublicKey)
-	giftAmountSC := types.Siacoins(100)
+	giftAmountSC := types.BigFiles(100)
 	giftTxn := types.Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{Address: giftAddress, Value: giftAmountSC},
 		},
 	}
@@ -136,7 +136,7 @@ func TestTxPool(t *testing.T) {
 	})
 
 	signTxn := func(txn *types.Transaction) {
-		for _, sci := range txn.SiacoinInputs {
+		for _, sci := range txn.BigFileInputs {
 			sig := giftPrivateKey.SignHash(cm.TipState().WholeSigHash(*txn, types.Hash256(sci.ParentID), 0, 0, nil))
 			txn.Signatures = append(txn.Signatures, types.TransactionSignature{
 				ParentID:       types.Hash256(sci.ParentID),
@@ -149,11 +149,11 @@ func TestTxPool(t *testing.T) {
 
 	// add a transaction to the pool
 	parentTxn := types.Transaction{
-		SiacoinInputs: []types.SiacoinInput{{
-			ParentID:         giftTxn.SiacoinOutputID(0),
+		BigFileInputs: []types.BigFileInput{{
+			ParentID:         giftTxn.BigFileOutputID(0),
 			UnlockConditions: types.StandardUnlockConditions(giftPublicKey),
 		}},
-		SiacoinOutputs: []types.SiacoinOutput{{
+		BigFileOutputs: []types.BigFileOutput{{
 			Address: giftAddress,
 			Value:   giftAmountSC,
 		}},
@@ -169,8 +169,8 @@ func TestTxPool(t *testing.T) {
 
 	// add another transaction, dependent on the first
 	childTxn := types.Transaction{
-		SiacoinInputs: []types.SiacoinInput{{
-			ParentID:         parentTxn.SiacoinOutputID(0),
+		BigFileInputs: []types.BigFileInput{{
+			ParentID:         parentTxn.BigFileOutputID(0),
 			UnlockConditions: types.StandardUnlockConditions(giftPublicKey),
 		}},
 		MinerFees: []types.Currency{giftAmountSC},
@@ -203,7 +203,7 @@ func TestTxPool(t *testing.T) {
 	b := types.Block{
 		ParentID:  cm.TipState().Index.ID,
 		Timestamp: types.CurrentTimestamp(),
-		MinerPayouts: []types.SiacoinOutput{{
+		MinerPayouts: []types.BigFileOutput{{
 			Value:   cm.TipState().BlockReward().Add(giftAmountSC),
 			Address: types.Address(frand.Entropy256()),
 		}},
@@ -231,9 +231,9 @@ func TestUpdateV2TransactionSet(t *testing.T) {
 	giftPrivateKey := types.GeneratePrivateKey()
 	giftPublicKey := giftPrivateKey.PublicKey()
 	giftAddress := types.StandardAddress(giftPublicKey)
-	giftAmountSC := types.Siacoins(100)
+	giftAmountSC := types.BigFiles(100)
 	giftTxn := types.Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{Address: giftAddress, Value: giftAmountSC},
 		},
 	}
@@ -243,8 +243,8 @@ func TestUpdateV2TransactionSet(t *testing.T) {
 	bs := consensus.V1BlockSupplement{Transactions: make([]consensus.V1TransactionSupplement, 1)}
 	cs, cau := consensus.ApplyBlock(n.GenesisState(), genesisBlock, bs, time.Time{})
 	txn := types.V2Transaction{
-		SiacoinInputs: []types.V2SiacoinInput{{
-			Parent: cau.SiacoinElementDiffs()[0].SiacoinElement.Copy(),
+		BigFileInputs: []types.V2BigFileInput{{
+			Parent: cau.BigFileElementDiffs()[0].BigFileElement.Copy(),
 			SatisfiedPolicy: types.SatisfiedPolicy{
 				Policy:     types.PolicyPublicKey(giftPublicKey),
 				Signatures: []types.Signature{},
@@ -252,7 +252,7 @@ func TestUpdateV2TransactionSet(t *testing.T) {
 		}},
 		MinerFee: giftAmountSC,
 	}
-	txn.SiacoinInputs[0].SatisfiedPolicy.Signatures = []types.Signature{giftPrivateKey.SignHash(cs.InputSigHash(txn))}
+	txn.BigFileInputs[0].SatisfiedPolicy.Signatures = []types.Signature{giftPrivateKey.SignHash(cs.InputSigHash(txn))}
 
 	ms := consensus.NewMidState(cs)
 	if err := consensus.ValidateV2Transaction(ms, txn); err != nil {
@@ -270,7 +270,7 @@ func TestUpdateV2TransactionSet(t *testing.T) {
 		b := types.Block{
 			ParentID:  cs.Index.ID,
 			Timestamp: types.CurrentTimestamp(),
-			MinerPayouts: []types.SiacoinOutput{{
+			MinerPayouts: []types.BigFileOutput{{
 				Value:   cs.BlockReward(),
 				Address: frand.Entropy256(),
 			}},

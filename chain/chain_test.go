@@ -13,7 +13,7 @@ import (
 
 type memState struct {
 	index              types.ChainIndex
-	utxos              map[types.SiacoinOutputID]types.SiacoinElement
+	utxos              map[types.BigFileOutputID]types.BigFileElement
 	chainIndexElements []types.ChainIndexElement
 }
 
@@ -41,9 +41,9 @@ func (ms *memState) Sync(t *testing.T, cm *chain.Manager) {
 			}
 
 			// revert utxos
-			for _, sced := range cru.SiacoinElementDiffs() {
-				sce := &sced.SiacoinElement
-				if sce.SiacoinOutput.Address == types.AnyoneCanSpend().Address() {
+			for _, sced := range cru.BigFileElementDiffs() {
+				sce := &sced.BigFileElement
+				if sce.BigFileOutput.Address == types.AnyoneCanSpend().Address() {
 					if sced.Spent {
 						ms.utxos[sce.ID] = sce.Copy()
 					}
@@ -70,9 +70,9 @@ func (ms *memState) Sync(t *testing.T, cm *chain.Manager) {
 			ms.chainIndexElements = append(ms.chainIndexElements, cau.ChainIndexElement())
 
 			// apply utxos
-			for _, sced := range cau.SiacoinElementDiffs() {
-				sce := &sced.SiacoinElement
-				if sce.SiacoinOutput.Address == types.AnyoneCanSpend().Address() {
+			for _, sced := range cau.BigFileElementDiffs() {
+				sce := &sced.BigFileElement
+				if sce.BigFileOutput.Address == types.AnyoneCanSpend().Address() {
 					if sced.Created {
 						ms.utxos[sce.ID] = sce.Copy()
 					}
@@ -92,8 +92,8 @@ func (ms *memState) Sync(t *testing.T, cm *chain.Manager) {
 	}
 }
 
-// SpendableElement returns the first spendable Siacoin utxo.
-func (ms *memState) SpendableElement(t *testing.T) (se types.SiacoinElement) {
+// SpendableElement returns the first spendable BigFile utxo.
+func (ms *memState) SpendableElement(t *testing.T) (se types.BigFileElement) {
 	for _, se = range ms.utxos {
 		if se.MaturityHeight <= ms.index.Height {
 			return
@@ -105,7 +105,7 @@ func (ms *memState) SpendableElement(t *testing.T) (se types.SiacoinElement) {
 
 func newMemState() *memState {
 	return &memState{
-		utxos: make(map[types.SiacoinOutputID]types.SiacoinElement),
+		utxos: make(map[types.BigFileOutputID]types.BigFileElement),
 	}
 }
 
@@ -181,10 +181,10 @@ func TestV2Attestations(t *testing.T) {
 		}
 		se := ms.SpendableElement(t)
 		txn := types.V2Transaction{
-			SiacoinInputs: []types.V2SiacoinInput{
+			BigFileInputs: []types.V2BigFileInput{
 				{Parent: se.Copy(), SatisfiedPolicy: types.SatisfiedPolicy{Policy: policy}},
 			},
-			MinerFee:      se.SiacoinOutput.Value,
+			MinerFee:      se.BigFileOutput.Value,
 			ArbitraryData: frand.Bytes(16),
 			Attestations: []types.Attestation{
 				ann.ToAttestation(cm.TipState(), sk),
@@ -273,13 +273,13 @@ func TestV2Attestations(t *testing.T) {
 			{Address: "foo.bar:1234", Protocol: "tcp"},
 		}
 		se := ms.SpendableElement(t)
-		minerFee := types.Siacoins(1)
+		minerFee := types.BigFiles(1)
 		txn := types.V2Transaction{
-			SiacoinInputs: []types.V2SiacoinInput{
+			BigFileInputs: []types.V2BigFileInput{
 				{Parent: se.Copy(), SatisfiedPolicy: types.SatisfiedPolicy{Policy: policy}},
 			},
-			SiacoinOutputs: []types.SiacoinOutput{
-				{Address: addr, Value: se.SiacoinOutput.Value.Sub(minerFee)},
+			BigFileOutputs: []types.BigFileOutput{
+				{Address: addr, Value: se.BigFileOutput.Value.Sub(minerFee)},
 			},
 			MinerFee:      minerFee,
 			ArbitraryData: frand.Bytes(16),

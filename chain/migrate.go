@@ -69,8 +69,8 @@ func migrateDB(dbs *DBStore, n *consensus.Network, l MigrationLogger) error {
 		for id := range dbs.db.Bucket(bFileContractElements).Iter() {
 			dbs.bucket(bFileContractElements).delete(id)
 		}
-		for id := range dbs.db.Bucket(bSiacoinElements).Iter() {
-			dbs.bucket(bSiacoinElements).delete(id)
+		for id := range dbs.db.Bucket(bBigFileElements).Iter() {
+			dbs.bucket(bBigFileElements).delete(id)
 		}
 		for id := range dbs.db.Bucket(bSiafundElements).Iter() {
 			dbs.bucket(bSiafundElements).delete(id)

@@ -643,8 +643,8 @@ func (m *Manager) computeParentMap() map[types.Hash256]int {
 	}
 	m.txpool.parentMap = make(map[types.Hash256]int)
 	for index, txn := range m.txpool.txns {
-		for i := range txn.SiacoinOutputs {
-			m.txpool.parentMap[types.Hash256(txn.SiacoinOutputID(i))] = index
+		for i := range txn.BigFileOutputs {
+			m.txpool.parentMap[types.Hash256(txn.BigFileOutputID(i))] = index
 		}
 		for i := range txn.SiafundInputs {
 			m.txpool.parentMap[types.Hash256(txn.SiafundClaimOutputID(i))] = index
@@ -658,8 +658,8 @@ func (m *Manager) computeParentMap() map[types.Hash256]int {
 	}
 	for index, txn := range m.txpool.v2txns {
 		txid := txn.ID()
-		for i := range txn.SiacoinOutputs {
-			m.txpool.parentMap[types.Hash256(txn.SiacoinOutputID(txid, i))] = index
+		for i := range txn.BigFileOutputs {
+			m.txpool.parentMap[types.Hash256(txn.BigFileOutputID(txid, i))] = index
 		}
 		for _, sfi := range txn.SiafundInputs {
 			m.txpool.parentMap[types.Hash256(types.SiafundOutputID(sfi.Parent.ID).V2ClaimOutputID())] = index
@@ -684,8 +684,8 @@ func updateTxnProofs(txn *types.V2Transaction, updateElementProof func(*types.St
 		*e = e.Copy()
 		updateElementProof(e)
 	}
-	for i := range txn.SiacoinInputs {
-		updateProof(&txn.SiacoinInputs[i].Parent.StateElement)
+	for i := range txn.BigFileInputs {
+		updateProof(&txn.BigFileInputs[i].Parent.StateElement)
 	}
 	for i := range txn.SiafundInputs {
 		updateProof(&txn.SiafundInputs[i].Parent.StateElement)
@@ -711,9 +711,9 @@ func (m *Manager) revertPoolUpdate(cru consensus.RevertUpdate, cs consensus.Stat
 			return
 		} else if uncreated == nil {
 			uncreated = make(map[types.Hash256]bool)
-			for _, sced := range cru.SiacoinElementDiffs() {
+			for _, sced := range cru.BigFileElementDiffs() {
 				if sced.Created {
-					uncreated[types.Hash256(sced.SiacoinElement.ID)] = true
+					uncreated[types.Hash256(sced.BigFileElement.ID)] = true
 				}
 			}
 			for _, sfed := range cru.SiafundElementDiffs() {
@@ -737,8 +737,8 @@ func (m *Manager) revertPoolUpdate(cru consensus.RevertUpdate, cs consensus.Stat
 		}
 	}
 	for _, txn := range m.txpool.v2txns {
-		for i, si := range txn.SiacoinInputs {
-			replaceEphemeral(types.Hash256(si.Parent.ID), &txn.SiacoinInputs[i].Parent.StateElement)
+		for i, si := range txn.BigFileInputs {
+			replaceEphemeral(types.Hash256(si.Parent.ID), &txn.BigFileInputs[i].Parent.StateElement)
 		}
 		for i, si := range txn.SiafundInputs {
 			replaceEphemeral(types.Hash256(si.Parent.ID), &txn.SiafundInputs[i].Parent.StateElement)
@@ -769,9 +769,9 @@ func (m *Manager) applyPoolUpdate(cau consensus.ApplyUpdate, cs consensus.State)
 		} else if newElements == nil {
 			newElements = make(map[types.Hash256]types.StateElement)
 
-			for _, sced := range cau.SiacoinElementDiffs() {
+			for _, sced := range cau.BigFileElementDiffs() {
 				if sced.Created {
-					newElements[types.Hash256(sced.SiacoinElement.ID)] = sced.SiacoinElement.StateElement.Share()
+					newElements[types.Hash256(sced.BigFileElement.ID)] = sced.BigFileElement.StateElement.Share()
 				}
 			}
 			for _, sfed := range cau.SiafundElementDiffs() {
@@ -795,8 +795,8 @@ func (m *Manager) applyPoolUpdate(cau consensus.ApplyUpdate, cs consensus.State)
 		}
 	}
 	for _, txn := range m.txpool.v2txns {
-		for i, si := range txn.SiacoinInputs {
-			replaceEphemeral(types.Hash256(si.Parent.ID), &txn.SiacoinInputs[i].Parent.StateElement)
+		for i, si := range txn.BigFileInputs {
+			replaceEphemeral(types.Hash256(si.Parent.ID), &txn.BigFileInputs[i].Parent.StateElement)
 		}
 		for i, si := range txn.SiafundInputs {
 			replaceEphemeral(types.Hash256(si.Parent.ID), &txn.SiafundInputs[i].Parent.StateElement)
@@ -909,18 +909,18 @@ func (m *Manager) RecommendedFee() types.Currency {
 	//
 	// NOTE: empirically, the average txn weight is ~1000
 	estPoolWeight := m.txpool.weight + uint64(10e3)
-	// the target weight of the pool is 3e6, with an average fee of 1 SC / 1e3;
+	// the target weight of the pool is 3e6, with an average fee of 1 BIG / 1e3;
 	// compute targetFee * (estPoolWeight / targetWeight)^3
 	//
 	// NOTE: alternating the multiplications and divisions is crucial here to
 	// prevent immediate values from overflowing
 	const targetWeight = 3e6
-	weightFee := types.Siacoins(1).Div64(1000).
+	weightFee := types.BigFiles(1).Div64(1000).
 		Mul64(estPoolWeight).Div64(targetWeight).Mul64(estPoolWeight).
 		Div64(targetWeight).Mul64(estPoolWeight).Div64(targetWeight)
 
-	// finally, an absolute minimum fee: 1 SC / 100 KB
-	minFee := types.Siacoins(1).Div64(100e3)
+	// finally, an absolute minimum fee: 1 BIG / 100 KB
+	minFee := types.BigFiles(1).Div64(100e3)
 
 	// use the largest of all calculated fees
 	fee := medianFee
@@ -950,7 +950,7 @@ func (m *Manager) UnconfirmedParents(txn types.Transaction) []types.Transaction 
 		}
 	}
 	addParents := func(txn types.Transaction) {
-		for _, sci := range txn.SiacoinInputs {
+		for _, sci := range txn.BigFileInputs {
 			check(types.Hash256(sci.ParentID))
 		}
 		for _, sfi := range txn.SiafundInputs {
@@ -1012,7 +1012,7 @@ func (m *Manager) V2TransactionSet(basis types.ChainIndex, txn types.V2Transacti
 		}
 	}
 	addParents := func(txn types.V2Transaction) {
-		for _, sci := range txn.SiacoinInputs {
+		for _, sci := range txn.BigFileInputs {
 			check(types.Hash256(sci.Parent.ID))
 		}
 		for _, sfi := range txn.SiafundInputs {
@@ -1135,9 +1135,9 @@ func (m *Manager) updateV2TransactionProofs(txns []types.V2Transaction, from, to
 			confirmedTxns[txn.ID()] = true
 		}
 		confirmedStateElements := make(map[types.Hash256]types.StateElement)
-		for _, sced := range cau.SiacoinElementDiffs() {
+		for _, sced := range cau.BigFileElementDiffs() {
 			if sced.Created {
-				confirmedStateElements[types.Hash256(sced.SiacoinElement.ID)] = sced.SiacoinElement.StateElement.Share()
+				confirmedStateElements[types.Hash256(sced.BigFileElement.ID)] = sced.BigFileElement.StateElement.Share()
 			}
 		}
 		for _, sfed := range cau.SiafundElementDiffs() {
@@ -1154,15 +1154,15 @@ func (m *Manager) updateV2TransactionProofs(txns []types.V2Transaction, from, to
 			}
 
 			// update the state elements for any confirmed ephemeral elements
-			for j := range txns[i].SiacoinInputs {
-				if txns[i].SiacoinInputs[j].Parent.StateElement.LeafIndex != types.UnassignedLeafIndex {
+			for j := range txns[i].BigFileInputs {
+				if txns[i].BigFileInputs[j].Parent.StateElement.LeafIndex != types.UnassignedLeafIndex {
 					continue
 				}
-				se, ok := confirmedStateElements[types.Hash256(txns[i].SiacoinInputs[j].Parent.ID)]
+				se, ok := confirmedStateElements[types.Hash256(txns[i].BigFileInputs[j].Parent.ID)]
 				if !ok {
 					continue
 				}
-				txns[i].SiacoinInputs[j].Parent.StateElement = se.Share()
+				txns[i].BigFileInputs[j].Parent.StateElement = se.Share()
 			}
 
 			// update the state elements for any confirmed ephemeral elements
@@ -1188,7 +1188,7 @@ func (m *Manager) updateV2TransactionProofs(txns []types.V2Transaction, from, to
 }
 
 // AddPoolTransactions validates a transaction set and adds it to the txpool. If
-// any transaction references an element (SiacoinOutput, SiafundOutput, or
+// any transaction references an element (BigFileOutput, SiafundOutput, or
 // FileContract) not present in the blockchain, that element must be created by
 // a previous transaction in the set.
 //
@@ -1254,7 +1254,7 @@ func (m *Manager) UpdateV2TransactionSet(txns []types.V2Transaction, from, to ty
 }
 
 // AddV2PoolTransactions validates a transaction set and adds it to the txpool.
-// If any transaction references an element (SiacoinOutput, SiafundOutput, or
+// If any transaction references an element (BigFileOutput, SiafundOutput, or
 // FileContract) not present in the blockchain, that element must be created by
 // a previous transaction in the set.
 //

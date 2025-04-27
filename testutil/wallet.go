@@ -17,7 +17,7 @@ type (
 	EphemeralWalletStore struct {
 		mu     sync.Mutex
 		tip    types.ChainIndex
-		utxos  map[types.SiacoinOutputID]types.SiacoinElement
+		utxos  map[types.BigFileOutputID]types.BigFileElement
 		events []wallet.Event
 	}
 
@@ -33,10 +33,10 @@ func (et *ephemeralWalletUpdateTxn) WalletStateElements() (elements []types.Stat
 	return
 }
 
-// UpdateWalletSiacoinElementProofs updates the proofs of all state elements
+// UpdateWalletBigFileElementProofs updates the proofs of all state elements
 // affected by the update. ProofUpdater.UpdateElementProof must be called
 // for each state element in the database.
-func (et *ephemeralWalletUpdateTxn) UpdateWalletSiacoinElementProofs(pu wallet.ProofUpdater) error {
+func (et *ephemeralWalletUpdateTxn) UpdateWalletBigFileElementProofs(pu wallet.ProofUpdater) error {
 	for _, se := range et.store.utxos {
 		pu.UpdateElementProof(&se.StateElement)
 		et.store.utxos[se.ID] = se.Move()
@@ -44,14 +44,14 @@ func (et *ephemeralWalletUpdateTxn) UpdateWalletSiacoinElementProofs(pu wallet.P
 	return nil
 }
 
-func (et *ephemeralWalletUpdateTxn) WalletApplyIndex(index types.ChainIndex, created, spent []types.SiacoinElement, events []wallet.Event, _ time.Time) error {
+func (et *ephemeralWalletUpdateTxn) WalletApplyIndex(index types.ChainIndex, created, spent []types.BigFileElement, events []wallet.Event, _ time.Time) error {
 	for _, se := range spent {
 		if _, ok := et.store.utxos[se.ID]; !ok {
-			panic(fmt.Sprintf("siacoin element %q does not exist", se.ID))
+			panic(fmt.Sprintf("bigfile element %q does not exist", se.ID))
 		}
 		delete(et.store.utxos, se.ID)
 	}
-	// add siacoin elements
+	// add bigfile elements
 	for _, se := range created {
 		if _, ok := et.store.utxos[se.ID]; ok {
 			panic("duplicate element")
@@ -65,7 +65,7 @@ func (et *ephemeralWalletUpdateTxn) WalletApplyIndex(index types.ChainIndex, cre
 	return nil
 }
 
-func (et *ephemeralWalletUpdateTxn) WalletRevertIndex(index types.ChainIndex, removed, unspent []types.SiacoinElement, _ time.Time) error {
+func (et *ephemeralWalletUpdateTxn) WalletRevertIndex(index types.ChainIndex, removed, unspent []types.BigFileElement, _ time.Time) error {
 	// remove any events that were added in the reverted block
 	filtered := et.store.events[:0]
 	for i := range et.store.events {
@@ -76,12 +76,12 @@ func (et *ephemeralWalletUpdateTxn) WalletRevertIndex(index types.ChainIndex, re
 	}
 	et.store.events = filtered
 
-	// remove any siacoin elements that were added in the reverted block
+	// remove any bigfile elements that were added in the reverted block
 	for _, se := range removed {
 		delete(et.store.utxos, se.ID)
 	}
 
-	// readd any siacoin elements that were spent in the reverted block
+	// readd any bigfile elements that were spent in the reverted block
 	for _, se := range unspent {
 		et.store.utxos[se.ID] = se.Copy()
 	}
@@ -126,8 +126,8 @@ func (es *EphemeralWalletStore) WalletEventCount() (uint64, error) {
 	return uint64(len(es.events)), nil
 }
 
-// UnspentSiacoinElements returns the wallet's unspent siacoin outputs.
-func (es *EphemeralWalletStore) UnspentSiacoinElements() (utxos []types.SiacoinElement, _ error) {
+// UnspentBigFileElements returns the wallet's unspent bigfile outputs.
+func (es *EphemeralWalletStore) UnspentBigFileElements() (utxos []types.BigFileElement, _ error) {
 	es.mu.Lock()
 	defer es.mu.Unlock()
 
@@ -147,6 +147,6 @@ func (es *EphemeralWalletStore) Tip() (types.ChainIndex, error) {
 // NewEphemeralWalletStore returns a new EphemeralWalletStore.
 func NewEphemeralWalletStore() *EphemeralWalletStore {
 	return &EphemeralWalletStore{
-		utxos: make(map[types.SiacoinOutputID]types.SiacoinElement),
+		utxos: make(map[types.BigFileOutputID]types.BigFileElement),
 	}
 }

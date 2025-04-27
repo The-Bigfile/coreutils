@@ -92,10 +92,10 @@ func assertEvent(t *testing.T, wm *wallet.SingleAddressWallet, id types.Hash256,
 				t.Fatalf("expected maturity height %v, got %v", maturityHeight, event.MaturityHeight)
 			}
 
-			if !event.SiacoinInflow().Equals(inflow) {
-				t.Fatalf("expected inflow %v, got %v", inflow, event.SiacoinInflow())
-			} else if !event.SiacoinOutflow().Equals(outflow) {
-				t.Fatalf("expected outflow %v, got %v", outflow, event.SiacoinOutflow())
+			if !event.BigFileInflow().Equals(inflow) {
+				t.Fatalf("expected inflow %v, got %v", inflow, event.BigFileInflow())
+			} else if !event.BigFileOutflow().Equals(outflow) {
+				t.Fatalf("expected outflow %v, got %v", outflow, event.BigFileOutflow())
 			}
 			return
 		}
@@ -106,28 +106,28 @@ func assertEvent(t *testing.T, wm *wallet.SingleAddressWallet, id types.Hash256,
 func transactionValues(t *testing.T, wm *wallet.SingleAddressWallet, txn types.Transaction, addr types.Address) (inflow, outflow types.Currency) {
 	t.Helper()
 
-	utxos, err := wm.UnspentSiacoinElements()
+	utxos, err := wm.UnspentBigFileElements()
 	if err != nil {
-		t.Fatal("unspent siacoin elements", err)
+		t.Fatal("unspent bigfile elements", err)
 	}
 
-	elements := make(map[types.SiacoinOutputID]types.SiacoinElement)
+	elements := make(map[types.BigFileOutputID]types.BigFileElement)
 	for _, se := range utxos {
 		elements[se.ID] = se.Share()
 	}
 
-	for _, si := range txn.SiacoinInputs {
+	for _, si := range txn.BigFileInputs {
 		if si.UnlockConditions.UnlockHash() != addr {
 			continue
 		}
 		sce, ok := elements[si.ParentID]
 		if !ok {
-			t.Fatalf("missing siacoin element %v", si.ParentID)
+			t.Fatalf("missing bigfile element %v", si.ParentID)
 		}
-		outflow = outflow.Add(sce.SiacoinOutput.Value)
+		outflow = outflow.Add(sce.BigFileOutput.Value)
 	}
 
-	for _, so := range txn.SiacoinOutputs {
+	for _, so := range txn.BigFileOutputs {
 		if so.Address == addr {
 			inflow = inflow.Add(so.Value)
 		}
@@ -138,15 +138,15 @@ func transactionValues(t *testing.T, wm *wallet.SingleAddressWallet, txn types.T
 func v2TransactionValues(t *testing.T, txn types.V2Transaction, addr types.Address) (inflow, outflow types.Currency) {
 	t.Helper()
 
-	for _, so := range txn.SiacoinOutputs {
+	for _, so := range txn.BigFileOutputs {
 		if so.Address == addr {
 			inflow = inflow.Add(so.Value)
 		}
 	}
 
-	for _, si := range txn.SiacoinInputs {
-		if si.Parent.SiacoinOutput.Address == addr {
-			outflow = outflow.Add(si.Parent.SiacoinOutput.Value)
+	for _, si := range txn.BigFileInputs {
+		if si.Parent.BigFileOutput.Address == addr {
+			outflow = outflow.Add(si.Parent.BigFileOutput.Value)
 		}
 	}
 	return
@@ -243,10 +243,10 @@ func TestWallet(t *testing.T) {
 
 	// create a transaction that splits the wallet's balance into 20 outputs
 	txn := types.Transaction{
-		SiacoinOutputs: make([]types.SiacoinOutput, 20),
+		BigFileOutputs: make([]types.BigFileOutput, 20),
 	}
-	for i := range txn.SiacoinOutputs {
-		txn.SiacoinOutputs[i] = types.SiacoinOutput{
+	for i := range txn.BigFileOutputs {
+		txn.BigFileOutputs[i] = types.BigFileOutput{
 			Value:   initialReward.Div64(20),
 			Address: w.Address(),
 		}
@@ -317,7 +317,7 @@ func TestWallet(t *testing.T) {
 	sent := make([]types.Transaction, 20)
 	sendAmount := initialReward.Div64(20)
 	for i := range sent {
-		sent[i].SiacoinOutputs = []types.SiacoinOutput{
+		sent[i].BigFileOutputs = []types.BigFileOutput{
 			{Address: types.VoidAddress, Value: sendAmount},
 		}
 		toSign, err := w.FundTransaction(&sent[i], sendAmount, false)
@@ -395,7 +395,7 @@ func TestWalletUnconfirmed(t *testing.T) {
 
 	// fund and sign a transaction sending half the balance to the burn address
 	txn := types.Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{Address: types.VoidAddress, Value: initialReward.Div64(2)},
 			{Address: w.Address(), Value: initialReward.Div64(2)},
 		},
@@ -424,7 +424,7 @@ func TestWalletUnconfirmed(t *testing.T) {
 	}
 
 	txn2 := types.Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{Address: types.VoidAddress, Value: initialReward.Div64(2)},
 		},
 	}
@@ -454,14 +454,14 @@ func TestWalletUnconfirmed(t *testing.T) {
 		t.Fatal("expected 2 unconfirmed events")
 	}
 
-	if !poolTxns[0].SiacoinOutflow().Equals(initialReward) {
-		t.Fatalf("expected outflow of %v, got %v", initialReward, poolTxns[0].SiacoinOutflow())
-	} else if !poolTxns[0].SiacoinInflow().Equals(initialReward.Div64(2)) {
-		t.Fatalf("expected inflow of %v, got %v", initialReward.Div64(2), poolTxns[0].SiacoinInflow())
-	} else if !poolTxns[1].SiacoinOutflow().Equals(initialReward.Div64(2)) {
-		t.Fatalf("expected outflow of %v, got %v", initialReward.Div64(2), poolTxns[1].SiacoinOutflow())
-	} else if !poolTxns[1].SiacoinInflow().IsZero() {
-		t.Fatalf("expected no inflow, got %v", poolTxns[1].SiacoinInflow())
+	if !poolTxns[0].BigFileOutflow().Equals(initialReward) {
+		t.Fatalf("expected outflow of %v, got %v", initialReward, poolTxns[0].BigFileOutflow())
+	} else if !poolTxns[0].BigFileInflow().Equals(initialReward.Div64(2)) {
+		t.Fatalf("expected inflow of %v, got %v", initialReward.Div64(2), poolTxns[0].BigFileInflow())
+	} else if !poolTxns[1].BigFileOutflow().Equals(initialReward.Div64(2)) {
+		t.Fatalf("expected outflow of %v, got %v", initialReward.Div64(2), poolTxns[1].BigFileOutflow())
+	} else if !poolTxns[1].BigFileInflow().IsZero() {
+		t.Fatalf("expected no inflow, got %v", poolTxns[1].BigFileInflow())
 	}
 }
 
@@ -516,7 +516,7 @@ func TestWalletRedistribute(t *testing.T) {
 		}
 		var count int
 		for _, utxo := range utxos {
-			if utxo.SiacoinOutput.Value.Equals(amount) {
+			if utxo.BigFileOutput.Value.Equals(amount) {
 				count++
 			}
 		}
@@ -530,21 +530,21 @@ func TestWalletRedistribute(t *testing.T) {
 	assertOutputs(tipState.BlockReward(), 1)
 
 	// redistribute the wallet into 4 outputs of 75KS
-	amount := types.Siacoins(75e3)
+	amount := types.BigFiles(75e3)
 	if err := redistribute(amount, 4); err != nil {
 		t.Fatal(err)
 	}
 	assertOutputs(amount, 4)
 
 	// redistribute the wallet into 4 outputs of 50KS
-	amount = types.Siacoins(50e3)
+	amount = types.BigFiles(50e3)
 	if err := redistribute(amount, 4); err != nil {
 		t.Fatal(err)
 	}
 	assertOutputs(amount, 4)
 
 	// redistribute the wallet into 3 outputs of 101KS - expect ErrNotEnoughFunds
-	if err := redistribute(types.Siacoins(101e3), 3); !errors.Is(err, wallet.ErrNotEnoughFunds) {
+	if err := redistribute(types.BigFiles(101e3), 3); !errors.Is(err, wallet.ErrNotEnoughFunds) {
 		t.Fatalf("expected ErrNotEnoughFunds, got %v", err)
 	}
 
@@ -565,7 +565,7 @@ func TestWalletRedistribute(t *testing.T) {
 		t.Fatal(err)
 	} else if len(outputs) >= 11 {
 		t.Fatalf("expected at least 11 outputs, got %v", len(outputs))
-	} else if err := redistribute(types.Siacoins(1e3), 11); err != nil {
+	} else if err := redistribute(types.BigFiles(1e3), 11); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -622,7 +622,7 @@ func TestWalletRedistributeV2(t *testing.T) {
 		}
 		var count int
 		for _, utxo := range utxos {
-			if utxo.SiacoinOutput.Value.Equals(amount) {
+			if utxo.BigFileOutput.Value.Equals(amount) {
 				count++
 			}
 		}
@@ -636,21 +636,21 @@ func TestWalletRedistributeV2(t *testing.T) {
 	assertOutputs(tipState.BlockReward(), 1)
 
 	// redistribute the wallet into 4 outputs of 75KS
-	amount := types.Siacoins(75e3)
+	amount := types.BigFiles(75e3)
 	if err := redistribute(amount, 4); err != nil {
 		t.Fatal(err)
 	}
 	assertOutputs(amount, 4)
 
 	// redistribute the wallet into 4 outputs of 50KS
-	amount = types.Siacoins(50e3)
+	amount = types.BigFiles(50e3)
 	if err := redistribute(amount, 4); err != nil {
 		t.Fatal(err)
 	}
 	assertOutputs(amount, 4)
 
 	// redistribute the wallet into 3 outputs of 101KS - expect ErrNotEnoughFunds
-	if err := redistribute(types.Siacoins(101e3), 3); !errors.Is(err, wallet.ErrNotEnoughFunds) {
+	if err := redistribute(types.BigFiles(101e3), 3); !errors.Is(err, wallet.ErrNotEnoughFunds) {
 		t.Fatalf("expected ErrNotEnoughFunds, got %v", err)
 	}
 
@@ -671,7 +671,7 @@ func TestWalletRedistributeV2(t *testing.T) {
 		t.Fatal(err)
 	} else if len(outputs) >= 11 {
 		t.Fatalf("expected at least 11 outputs, got %v", len(outputs))
-	} else if err := redistribute(types.Siacoins(1e3), 11); err != nil {
+	} else if err := redistribute(types.BigFiles(1e3), 11); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -722,10 +722,10 @@ func TestReorg(t *testing.T) {
 
 	// create a transaction that splits the wallet's balance into 20 outputs
 	txn := types.Transaction{
-		SiacoinOutputs: make([]types.SiacoinOutput, 20),
+		BigFileOutputs: make([]types.BigFileOutput, 20),
 	}
-	for i := range txn.SiacoinOutputs {
-		txn.SiacoinOutputs[i] = types.SiacoinOutput{
+	for i := range txn.BigFileOutputs {
+		txn.BigFileOutputs[i] = types.BigFileOutput{
 			Value:   initialReward.Div64(20),
 			Address: w.Address(),
 		}
@@ -806,7 +806,7 @@ func TestReorg(t *testing.T) {
 	}
 
 	txn2 := types.Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{Address: types.VoidAddress, Value: initialReward},
 		},
 	}
@@ -819,7 +819,7 @@ func TestReorg(t *testing.T) {
 	w.ReleaseInputs([]types.Transaction{txn2}, nil)
 
 	txn1 := types.Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{Address: types.VoidAddress, Value: initialReward.Div64(2)},
 		},
 	}
@@ -852,7 +852,7 @@ func TestReorg(t *testing.T) {
 		b := types.Block{
 			ParentID:     state.Index.ID,
 			Timestamp:    types.CurrentTimestamp(),
-			MinerPayouts: []types.SiacoinOutput{{Address: types.VoidAddress, Value: state.BlockReward()}},
+			MinerPayouts: []types.BigFileOutput{{Address: types.VoidAddress, Value: state.BlockReward()}},
 		}
 		if !coreutils.FindBlockNonce(state, &b, time.Second) {
 			t.Fatal("failed to find nonce")
@@ -864,7 +864,7 @@ func TestReorg(t *testing.T) {
 	b := types.Block{
 		ParentID:     state.Index.ID,
 		Timestamp:    types.CurrentTimestamp(),
-		MinerPayouts: []types.SiacoinOutput{{Address: types.VoidAddress, Value: state.BlockReward()}},
+		MinerPayouts: []types.BigFileOutput{{Address: types.VoidAddress, Value: state.BlockReward()}},
 		Transactions: []types.Transaction{txn2}, // spend the second transaction to invalidate the tpool transaction
 	}
 	if !coreutils.FindBlockNonce(state, &b, time.Second) {
@@ -936,10 +936,10 @@ func TestWalletV2(t *testing.T) {
 
 	// create a transaction that splits the wallet's balance into 20 outputs
 	txn := types.Transaction{
-		SiacoinOutputs: make([]types.SiacoinOutput, 20),
+		BigFileOutputs: make([]types.BigFileOutput, 20),
 	}
-	for i := range txn.SiacoinOutputs {
-		txn.SiacoinOutputs[i] = types.SiacoinOutput{
+	for i := range txn.BigFileOutputs {
+		txn.BigFileOutputs[i] = types.BigFileOutput{
 			Value:   initialReward.Div64(20),
 			Address: w.Address(),
 		}
@@ -1023,13 +1023,13 @@ func TestWalletV2(t *testing.T) {
 	mineAndSync(t, cm, ws, w, types.VoidAddress, network.HardforkV2.RequireHeight-cm.Tip().Height)
 
 	v2Txn := types.V2Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
-			{Address: types.VoidAddress, Value: types.Siacoins(100)},
+		BigFileOutputs: []types.BigFileOutput{
+			{Address: types.VoidAddress, Value: types.BigFiles(100)},
 		},
 	}
 
 	// fund and sign the transaction
-	basis, toSignV2, err := w.FundV2Transaction(&v2Txn, types.Siacoins(100), false)
+	basis, toSignV2, err := w.FundV2Transaction(&v2Txn, types.BigFiles(100), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1114,10 +1114,10 @@ func TestReorgV2(t *testing.T) {
 
 	// create a transaction that splits the wallet's balance into 20 outputs
 	txn := types.V2Transaction{
-		SiacoinOutputs: make([]types.SiacoinOutput, 20),
+		BigFileOutputs: make([]types.BigFileOutput, 20),
 	}
-	for i := range txn.SiacoinOutputs {
-		txn.SiacoinOutputs[i] = types.SiacoinOutput{
+	for i := range txn.BigFileOutputs {
+		txn.BigFileOutputs[i] = types.BigFileOutput{
 			Value:   initialReward.Div64(20),
 			Address: w.Address(),
 		}
@@ -1200,7 +1200,7 @@ func TestReorgV2(t *testing.T) {
 	}
 
 	txn2 := types.V2Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{Address: types.VoidAddress, Value: initialReward},
 		},
 	}
@@ -1214,7 +1214,7 @@ func TestReorgV2(t *testing.T) {
 	w.ReleaseInputs(nil, []types.V2Transaction{txn2})
 
 	txn1 := types.V2Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{Address: types.VoidAddress, Value: initialReward.Div64(2)},
 		},
 	}
@@ -1247,7 +1247,7 @@ func TestReorgV2(t *testing.T) {
 	b := types.Block{
 		ParentID:     state.Index.ID,
 		Timestamp:    types.CurrentTimestamp(),
-		MinerPayouts: []types.SiacoinOutput{{Address: types.VoidAddress, Value: state.BlockReward()}},
+		MinerPayouts: []types.BigFileOutput{{Address: types.VoidAddress, Value: state.BlockReward()}},
 		V2: &types.V2BlockData{
 			Height:       state.Index.Height + 1,
 			Transactions: []types.V2Transaction{txn2},
@@ -1264,7 +1264,7 @@ func TestReorgV2(t *testing.T) {
 		b := types.Block{
 			ParentID:     state.Index.ID,
 			Timestamp:    types.CurrentTimestamp(),
-			MinerPayouts: []types.SiacoinOutput{{Address: types.VoidAddress, Value: state.BlockReward()}},
+			MinerPayouts: []types.BigFileOutput{{Address: types.VoidAddress, Value: state.BlockReward()}},
 			V2: &types.V2BlockData{
 				Height: state.Index.Height + 1,
 			},
@@ -1351,7 +1351,7 @@ func TestFundTransaction(t *testing.T) {
 	sendAmt := balance.Confirmed
 
 	txnV2 := types.V2Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{
 				Address: w.Address(),
 				Value:   sendAmt,
@@ -1386,7 +1386,7 @@ func TestFundTransaction(t *testing.T) {
 
 	// try again using unconfirmed balance, should work
 	txnV3 := types.V2Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigFileOutputs: []types.BigFileOutput{
 			{
 				Address: w.Address(),
 				Value:   sendAmt,
@@ -1449,11 +1449,11 @@ func TestSingleAddressWalletEventTypes(t *testing.T) {
 	t.Run("v1 transaction", func(t *testing.T) {
 		// fund and sign a v1 transaction
 		txn := types.Transaction{
-			SiacoinOutputs: []types.SiacoinOutput{
-				{Address: types.VoidAddress, Value: types.Siacoins(1000)},
+			BigFileOutputs: []types.BigFileOutput{
+				{Address: types.VoidAddress, Value: types.BigFiles(1000)},
 			},
 		}
-		toSign, err := wm.FundTransaction(&txn, types.Siacoins(1000), false)
+		toSign, err := wm.FundTransaction(&txn, types.BigFiles(1000), false)
 		if err != nil {
 			t.Fatal("fund transaction", err)
 		}
@@ -1474,18 +1474,18 @@ func TestSingleAddressWalletEventTypes(t *testing.T) {
 		// The only difference is `missed == true` or `missed == false`
 
 		// create a storage contract
-		contractPayout := types.Siacoins(10000)
-		missedPayout := contractPayout.Sub(types.Siacoins(1000))
+		contractPayout := types.BigFiles(10000)
+		missedPayout := contractPayout.Sub(types.BigFiles(1000))
 		fc := types.FileContract{
 			WindowStart: cm.TipState().Index.Height + 10,
 			WindowEnd:   cm.TipState().Index.Height + 20,
 			Payout:      taxAdjustedPayout(contractPayout),
-			ValidProofOutputs: []types.SiacoinOutput{
+			ValidProofOutputs: []types.BigFileOutput{
 				{Address: addr, Value: contractPayout},
 			},
-			MissedProofOutputs: []types.SiacoinOutput{
+			MissedProofOutputs: []types.BigFileOutput{
 				{Address: addr, Value: missedPayout},
-				{Address: types.VoidAddress, Value: types.Siacoins(1000)},
+				{Address: types.VoidAddress, Value: types.BigFiles(1000)},
 			},
 		}
 
@@ -1511,11 +1511,11 @@ func TestSingleAddressWalletEventTypes(t *testing.T) {
 
 	t.Run("v2 transaction", func(t *testing.T) {
 		txn := types.V2Transaction{
-			SiacoinOutputs: []types.SiacoinOutput{
-				{Address: types.VoidAddress, Value: types.Siacoins(1000)},
+			BigFileOutputs: []types.BigFileOutput{
+				{Address: types.VoidAddress, Value: types.BigFiles(1000)},
 			},
 		}
-		basis, toSign, err := wm.FundV2Transaction(&txn, types.Siacoins(1000), false)
+		basis, toSign, err := wm.FundV2Transaction(&txn, types.BigFiles(1000), false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1533,13 +1533,13 @@ func TestSingleAddressWalletEventTypes(t *testing.T) {
 
 	t.Run("v2 contract resolution - expired", func(t *testing.T) {
 		// create a storage contract
-		renterPayout := types.Siacoins(10000)
+		renterPayout := types.BigFiles(10000)
 		fc := types.V2FileContract{
-			RenterOutput: types.SiacoinOutput{
+			RenterOutput: types.BigFileOutput{
 				Address: addr,
 				Value:   renterPayout,
 			},
-			HostOutput: types.SiacoinOutput{
+			HostOutput: types.BigFileOutput{
 				Address: types.VoidAddress,
 				Value:   types.ZeroCurrency,
 			},
@@ -1606,13 +1606,13 @@ func TestSingleAddressWalletEventTypes(t *testing.T) {
 
 	t.Run("v2 contract resolution - storage proof", func(t *testing.T) {
 		// create a storage contract
-		renterPayout := types.Siacoins(10000)
+		renterPayout := types.BigFiles(10000)
 		fc := types.V2FileContract{
-			RenterOutput: types.SiacoinOutput{
+			RenterOutput: types.BigFileOutput{
 				Address: types.VoidAddress,
 				Value:   types.ZeroCurrency,
 			},
-			HostOutput: types.SiacoinOutput{
+			HostOutput: types.BigFileOutput{
 				Address: addr,
 				Value:   renterPayout,
 			},
@@ -1685,13 +1685,13 @@ func TestSingleAddressWalletEventTypes(t *testing.T) {
 
 	t.Run("v2 contract resolution - renewal", func(t *testing.T) {
 		// create a storage contract
-		renterPayout := types.Siacoins(10000)
+		renterPayout := types.BigFiles(10000)
 		fc := types.V2FileContract{
-			RenterOutput: types.SiacoinOutput{
+			RenterOutput: types.BigFileOutput{
 				Address: addr,
 				Value:   renterPayout,
 			},
-			HostOutput: types.SiacoinOutput{
+			HostOutput: types.BigFileOutput{
 				Address: types.VoidAddress,
 				Value:   types.ZeroCurrency,
 			},
@@ -1766,7 +1766,7 @@ func TestSingleAddressWalletEventTypes(t *testing.T) {
 
 		// renewals can't have change outputs
 		setupTxn := types.V2Transaction{
-			SiacoinOutputs: []types.SiacoinOutput{
+			BigFileOutputs: []types.BigFileOutput{
 				{Address: addr, Value: newContractValue},
 			},
 		}
@@ -1778,9 +1778,9 @@ func TestSingleAddressWalletEventTypes(t *testing.T) {
 
 		// create the renewal transaction
 		resolutionTxn := types.V2Transaction{
-			SiacoinInputs: []types.V2SiacoinInput{
+			BigFileInputs: []types.V2BigFileInput{
 				{
-					Parent: setupTxn.EphemeralSiacoinOutput(0),
+					Parent: setupTxn.EphemeralBigFileOutput(0),
 					SatisfiedPolicy: types.SatisfiedPolicy{
 						Policy: wm.SpendPolicy(),
 					},
@@ -1832,13 +1832,13 @@ func TestV2TxPoolRace(t *testing.T) {
 	// mine until one utxo is mature
 	mineAndSync(t, cm, ws, w, types.VoidAddress, network.MaturityDelay)
 
-	// create a transaction that creates an ephemeral output with 1000 SC
+	// create a transaction that creates an ephemeral output with 1000 BIG
 	setupTxn := types.V2Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
-			{Address: w.Address(), Value: types.Siacoins(1000)},
+		BigFileOutputs: []types.BigFileOutput{
+			{Address: w.Address(), Value: types.BigFiles(1000)},
 		},
 	}
-	basis, toSign, err := w.FundV2Transaction(&setupTxn, types.Siacoins(1000), false)
+	basis, toSign, err := w.FundV2Transaction(&setupTxn, types.BigFiles(1000), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1851,18 +1851,18 @@ func TestV2TxPoolRace(t *testing.T) {
 
 	// create a transaction that spends the ephemeral output
 	spendTxn := types.V2Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
-			{Address: types.VoidAddress, Value: types.Siacoins(1000)},
+		BigFileOutputs: []types.BigFileOutput{
+			{Address: types.VoidAddress, Value: types.BigFiles(1000)},
 		},
 	}
 
 	// try to fund with non-ephemeral output, should fail
-	if _, _, err = w.FundV2Transaction(&spendTxn, types.Siacoins(1000), false); err == nil {
+	if _, _, err = w.FundV2Transaction(&spendTxn, types.BigFiles(1000), false); err == nil {
 		t.Fatal("expected funding error, got nil")
 	}
 
 	// fund with the tpool ephemeral output
-	basis, toSign, err = w.FundV2Transaction(&spendTxn, types.Siacoins(1000), true)
+	basis, toSign, err = w.FundV2Transaction(&spendTxn, types.BigFiles(1000), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1882,7 +1882,7 @@ func TestV2TxPoolRace(t *testing.T) {
 	// updating the transaction shouldn't change its ID
 	if spendTxn, ok := cm.V2PoolTransaction(spendTxn.ID()); !ok {
 		t.Fatal("expected spend transaction to be in pool")
-	} else if spendTxn.SiacoinInputs[0].Parent.StateElement.LeafIndex == types.UnassignedLeafIndex {
+	} else if spendTxn.BigFileInputs[0].Parent.StateElement.LeafIndex == types.UnassignedLeafIndex {
 		t.Fatal("expected ephemeral output to be replaced")
 	}
 }

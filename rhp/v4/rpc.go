@@ -704,9 +704,9 @@ func RPCFormContract(ctx context.Context, t TransportClient, tp TxPool, signer F
 	}
 	formationTxn, formationSet = formationSet[len(formationSet)-1], formationSet[:len(formationSet)-1]
 
-	renterSiacoinElements := make([]types.SiacoinElement, 0, len(formationTxn.SiacoinInputs))
-	for _, i := range formationTxn.SiacoinInputs {
-		renterSiacoinElements = append(renterSiacoinElements, i.Parent.Move())
+	renterBigFileElements := make([]types.BigFileElement, 0, len(formationTxn.BigFileInputs))
+	for _, i := range formationTxn.BigFileInputs {
+		renterBigFileElements = append(renterBigFileElements, i.Parent.Move())
 	}
 
 	s, err := openStream(ctx, t, defaultStreamTimeout)
@@ -721,7 +721,7 @@ func RPCFormContract(ctx context.Context, t TransportClient, tp TxPool, signer F
 		Contract:      params,
 		Basis:         basis,
 		MinerFee:      formationTxn.MinerFee,
-		RenterInputs:  renterSiacoinElements,
+		RenterInputs:  renterBigFileElements,
 		RenterParents: formationSet,
 	}
 	if err := rhp4.WriteRequest(s, rhp4.RPCFormContractID, &req); err != nil {
@@ -738,8 +738,8 @@ func RPCFormContract(ctx context.Context, t TransportClient, tp TxPool, signer F
 	// add the host inputs to the transaction
 	var hostInputSum types.Currency
 	for _, si := range hostInputsResp.HostInputs {
-		hostInputSum = hostInputSum.Add(si.Parent.SiacoinOutput.Value)
-		formationTxn.SiacoinInputs = append(formationTxn.SiacoinInputs, si)
+		hostInputSum = hostInputSum.Add(si.Parent.BigFileOutput.Value)
+		formationTxn.BigFileInputs = append(formationTxn.BigFileInputs, si)
 	}
 
 	if n := hostInputSum.Cmp(fc.TotalCollateral); n < 0 {
@@ -747,7 +747,7 @@ func RPCFormContract(ctx context.Context, t TransportClient, tp TxPool, signer F
 		return RPCFormContractResult{}, fmt.Errorf("expected host to fund at least %v, got %v", fc.TotalCollateral, hostInputSum)
 	} else if n > 0 {
 		// add change output
-		formationTxn.SiacoinOutputs = append(formationTxn.SiacoinOutputs, types.SiacoinOutput{
+		formationTxn.BigFileOutputs = append(formationTxn.BigFileOutputs, types.BigFileOutput{
 			Address: fc.HostOutput.Address,
 			Value:   hostInputSum.Sub(fc.TotalCollateral),
 		})
@@ -761,7 +761,7 @@ func RPCFormContract(ctx context.Context, t TransportClient, tp TxPool, signer F
 	renterPolicyResp := rhp4.RPCFormContractSecondResponse{
 		RenterContractSignature: fc.RenterSignature,
 	}
-	for _, si := range formationTxn.SiacoinInputs[:len(renterSiacoinElements)] {
+	for _, si := range formationTxn.BigFileInputs[:len(renterBigFileElements)] {
 		renterPolicyResp.RenterSatisfiedPolicies = append(renterPolicyResp.RenterSatisfiedPolicies, si.SatisfiedPolicy)
 	}
 	// send the renter signatures
@@ -850,7 +850,7 @@ func RPCRenewContract(ctx context.Context, t TransportClient, tp TxPool, signer 
 		signer.ReleaseInputs([]types.V2Transaction{renewalTxn})
 		return RPCRenewContractResult{}, fmt.Errorf("failed to get transaction set: %w", err)
 	}
-	for _, si := range renewalTxn.SiacoinInputs {
+	for _, si := range renewalTxn.BigFileInputs {
 		req.RenterInputs = append(req.RenterInputs, si.Parent.Move())
 	}
 	req.RenterParents = req.RenterParents[:len(req.RenterParents)-1] // last transaction is the renewal
@@ -878,8 +878,8 @@ func RPCRenewContract(ctx context.Context, t TransportClient, tp TxPool, signer 
 	// add the host inputs to the transaction
 	var hostInputSum types.Currency
 	for _, si := range hostInputsResp.HostInputs {
-		hostInputSum = hostInputSum.Add(si.Parent.SiacoinOutput.Value)
-		renewalTxn.SiacoinInputs = append(renewalTxn.SiacoinInputs, si)
+		hostInputSum = hostInputSum.Add(si.Parent.BigFileOutput.Value)
+		renewalTxn.BigFileInputs = append(renewalTxn.BigFileInputs, si)
 	}
 
 	// verify the host added enough inputs
@@ -888,7 +888,7 @@ func RPCRenewContract(ctx context.Context, t TransportClient, tp TxPool, signer 
 		return RPCRenewContractResult{}, fmt.Errorf("expected host to fund %v, got %v", hostCost, hostInputSum)
 	} else if n > 0 {
 		// add change output
-		renewalTxn.SiacoinOutputs = append(renewalTxn.SiacoinOutputs, types.SiacoinOutput{
+		renewalTxn.BigFileOutputs = append(renewalTxn.BigFileOutputs, types.BigFileOutput{
 			Address: existing.HostOutput.Address,
 			Value:   hostInputSum.Sub(hostCost),
 		})
@@ -908,7 +908,7 @@ func RPCRenewContract(ctx context.Context, t TransportClient, tp TxPool, signer 
 		RenterRenewalSignature:  renewal.RenterSignature,
 		RenterContractSignature: renewal.NewContract.RenterSignature,
 	}
-	for _, si := range renewalTxn.SiacoinInputs[:len(req.RenterInputs)] {
+	for _, si := range renewalTxn.BigFileInputs[:len(req.RenterInputs)] {
 		renterPolicyResp.RenterSatisfiedPolicies = append(renterPolicyResp.RenterSatisfiedPolicies, si.SatisfiedPolicy)
 	}
 	if err := rhp4.WriteResponse(s, &renterPolicyResp); err != nil {
@@ -995,7 +995,7 @@ func RPCRefreshContract(ctx context.Context, t TransportClient, tp TxPool, signe
 		signer.ReleaseInputs([]types.V2Transaction{renewalTxn})
 		return RPCRefreshContractResult{}, fmt.Errorf("failed to get transaction set: %w", err)
 	}
-	for _, si := range renewalTxn.SiacoinInputs {
+	for _, si := range renewalTxn.BigFileInputs {
 		req.RenterInputs = append(req.RenterInputs, si.Parent.Move())
 	}
 	req.RenterParents = req.RenterParents[:len(req.RenterParents)-1] // last transaction is the renewal
@@ -1023,8 +1023,8 @@ func RPCRefreshContract(ctx context.Context, t TransportClient, tp TxPool, signe
 	// add the host inputs to the transaction
 	var hostInputSum types.Currency
 	for _, si := range hostInputsResp.HostInputs {
-		hostInputSum = hostInputSum.Add(si.Parent.SiacoinOutput.Value)
-		renewalTxn.SiacoinInputs = append(renewalTxn.SiacoinInputs, si)
+		hostInputSum = hostInputSum.Add(si.Parent.BigFileOutput.Value)
+		renewalTxn.BigFileInputs = append(renewalTxn.BigFileInputs, si)
 	}
 
 	// verify the host added enough inputs
@@ -1033,7 +1033,7 @@ func RPCRefreshContract(ctx context.Context, t TransportClient, tp TxPool, signe
 		return RPCRefreshContractResult{}, fmt.Errorf("expected host to fund %v, got %v", hostCost, hostInputSum)
 	} else if n > 0 {
 		// add change output
-		renewalTxn.SiacoinOutputs = append(renewalTxn.SiacoinOutputs, types.SiacoinOutput{
+		renewalTxn.BigFileOutputs = append(renewalTxn.BigFileOutputs, types.BigFileOutput{
 			Address: existing.HostOutput.Address,
 			Value:   hostInputSum.Sub(hostCost),
 		})
@@ -1053,7 +1053,7 @@ func RPCRefreshContract(ctx context.Context, t TransportClient, tp TxPool, signe
 		RenterRenewalSignature:  renewal.RenterSignature,
 		RenterContractSignature: renewal.NewContract.RenterSignature,
 	}
-	for _, si := range renewalTxn.SiacoinInputs[:len(req.RenterInputs)] {
+	for _, si := range renewalTxn.BigFileInputs[:len(req.RenterInputs)] {
 		renterPolicyResp.RenterSatisfiedPolicies = append(renterPolicyResp.RenterSatisfiedPolicies, si.SatisfiedPolicy)
 	}
 	if err := rhp4.WriteResponse(s, &renterPolicyResp); err != nil {
