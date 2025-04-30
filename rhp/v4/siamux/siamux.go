@@ -11,7 +11,7 @@ import (
 	"go.thebigfile.com/core/types"
 	"go.thebigfile.com/coreutils/chain"
 	rhp4 "go.thebigfile.com/coreutils/rhp/v4"
-	"go.sia.tech/mux"
+	"go.thebigfile.com/mux"
 	"go.uber.org/zap"
 )
 
