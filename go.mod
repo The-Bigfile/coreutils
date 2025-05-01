@@ -8,7 +8,7 @@ require (
 	github.com/quic-go/quic-go v0.51.0
 	github.com/quic-go/webtransport-go v0.8.1-0.20241018022711-4ac2c9250e66
 	go.etcd.io/bbolt v1.4.0
-	go.thebigfile.com/core v0.0.6
+	go.thebigfile.com/core v1.0.1
 	go.thebigfile.com/mux v0.0.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.37.0
@@ -20,6 +20,7 @@ require (
 	github.com/google/pprof v0.0.0-20230821062121-407c9e7a662f // indirect
 	github.com/onsi/ginkgo/v2 v2.12.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
+	go.sia.tech/mux v1.3.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.24.0 // indirect
