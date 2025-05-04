@@ -10,11 +10,11 @@ import (
 
 // event types indicate the source of an event. Events can
 // either be created by sending BigFiles between addresses or they can be
-// created by consensus (e.g. a miner payout, a siafund claim, or a contract).
+// created by consensus (e.g. a miner payout, a bigfund claim, or a contract).
 const (
 	EventTypeMinerPayout       = "miner"
 	EventTypeFoundationSubsidy = "foundation"
-	EventTypeSiafundClaim      = "siafundClaim"
+	EventTypeBigfundClaim      = "bigfundClaim"
 
 	EventTypeV1Transaction        = "v1Transaction"
 	EventTypeV1ContractResolution = "v1ContractResolution"
@@ -24,27 +24,27 @@ const (
 )
 
 type (
-	// An EventPayout represents a miner payout, siafund claim, or foundation
+	// An EventPayout represents a miner payout, bigfund claim, or foundation
 	// subsidy.
 	EventPayout struct {
-		BigFileElement types.BigFileElement `json:"siacoinElement"`
+		BigFileElement types.BigFileElement `json:"bigfileElement"`
 	}
 
 	// An EventV1Transaction pairs a v1 transaction with its spent bigfile and
-	// siafund elements.
+	// bigfund elements.
 	EventV1Transaction struct {
 		Transaction types.Transaction `json:"transaction"`
 		// v1 bigfile inputs do not describe the value of the spent utxo
 		SpentBigFileElements []types.BigFileElement `json:"spentBigFileElements,omitempty"`
-		// v1 siafund inputs do not describe the value of the spent utxo
-		SpentSiafundElements []types.SiafundElement `json:"spentSiafundElements,omitempty"`
+		// v1 bigfund inputs do not describe the value of the spent utxo
+		SpentBigfundElements []types.BigfundElement `json:"spentBigfundElements,omitempty"`
 	}
 
 	// An EventV1ContractResolution represents a file contract payout from a v1
 	// contract.
 	EventV1ContractResolution struct {
 		Parent         types.FileContractElement `json:"parent"`
-		BigFileElement types.BigFileElement      `json:"siacoinElement"`
+		BigFileElement types.BigFileElement      `json:"bigfileElement"`
 		Missed         bool                      `json:"missed"`
 	}
 
@@ -52,7 +52,7 @@ type (
 	// contract.
 	EventV2ContractResolution struct {
 		Resolution     types.V2FileContractResolution `json:"resolution"`
-		BigFileElement types.BigFileElement           `json:"siacoinElement"`
+		BigFileElement types.BigFileElement           `json:"bigfileElement"`
 		Missed         bool                           `json:"missed"`
 	}
 
@@ -65,7 +65,7 @@ type (
 	}
 
 	// An Event is a transaction or other event that affects the wallet including
-	// miner payouts, siafund claims, and file contract payouts.
+	// miner payouts, bigfund claims, and file contract payouts.
 	Event struct {
 		ID             types.Hash256    `json:"id"`
 		Index          types.ChainIndex `json:"index"`
@@ -157,9 +157,9 @@ func (e *Event) BigFileInflow() types.Currency {
 	}
 }
 
-// SiafundOutflow calculates the sum of Siafunds that were spent by relevant
+// BigfundOutflow calculates the sum of Bigfunds that were spent by relevant
 // addresses
-func (e *Event) SiafundOutflow() uint64 {
+func (e *Event) BigfundOutflow() uint64 {
 	relevant := make(map[types.Address]bool)
 	for _, addr := range e.Relevant {
 		relevant[addr] = true
@@ -171,20 +171,20 @@ func (e *Event) SiafundOutflow() uint64 {
 		return 0
 	case EventV1Transaction:
 		var inflow uint64
-		for _, se := range data.SpentSiafundElements {
-			if !relevant[se.SiafundOutput.Address] {
+		for _, se := range data.SpentBigfundElements {
+			if !relevant[se.BigfundOutput.Address] {
 				continue
 			}
-			inflow += se.SiafundOutput.Value
+			inflow += se.BigfundOutput.Value
 		}
 		return inflow
 	case EventV2Transaction:
 		var inflow uint64
-		for _, se := range data.SiafundInputs {
-			if !relevant[se.Parent.SiafundOutput.Address] {
+		for _, se := range data.BigfundInputs {
+			if !relevant[se.Parent.BigfundOutput.Address] {
 				continue
 			}
-			inflow += se.Parent.SiafundOutput.Value
+			inflow += se.Parent.BigfundOutput.Value
 		}
 		return inflow
 	default:
@@ -192,9 +192,9 @@ func (e *Event) SiafundOutflow() uint64 {
 	}
 }
 
-// SiafundInflow calculates the sum of Siafunds that were received by relevant
+// BigfundInflow calculates the sum of Siafunds that were received by relevant
 // addresses
-func (e *Event) SiafundInflow() uint64 {
+func (e *Event) BigfundInflow() uint64 {
 	relevant := make(map[types.Address]bool)
 	for _, addr := range e.Relevant {
 		relevant[addr] = true
@@ -202,11 +202,11 @@ func (e *Event) SiafundInflow() uint64 {
 
 	switch data := e.Data.(type) {
 	case EventPayout, EventV1ContractResolution, EventV2ContractResolution:
-		// payout events cannot have siafund inflows
+		// payout events cannot have bigfund inflows
 		return 0
 	case EventV1Transaction:
 		var outflow uint64
-		for _, se := range data.Transaction.SiafundOutputs {
+		for _, se := range data.Transaction.BigfundOutputs {
 			if !relevant[se.Address] {
 				continue
 			}
@@ -215,7 +215,7 @@ func (e *Event) SiafundInflow() uint64 {
 		return outflow
 	case EventV2Transaction:
 		var outflow uint64
-		for _, se := range data.SiafundOutputs {
+		for _, se := range data.BigfundOutputs {
 			if !relevant[se.Address] {
 				continue
 			}
@@ -253,7 +253,7 @@ func (e *Event) UnmarshalJSON(b []byte) error {
 
 	var err error
 	switch je.Type {
-	case EventTypeMinerPayout, EventTypeFoundationSubsidy, EventTypeSiafundClaim:
+	case EventTypeMinerPayout, EventTypeFoundationSubsidy, EventTypeBigfundClaim:
 		var data EventPayout
 		err = json.Unmarshal(je.Data, &data)
 		e.Data = data
@@ -293,14 +293,14 @@ func (ep *EventPayout) DecodeFrom(d *types.Decoder) {
 func (et EventV1Transaction) EncodeTo(e *types.Encoder) {
 	et.Transaction.EncodeTo(e)
 	types.EncodeSlice(e, et.SpentBigFileElements)
-	types.EncodeSlice(e, et.SpentSiafundElements)
+	types.EncodeSlice(e, et.SpentBigfundElements)
 }
 
 // DecodeFrom implements types.DecoderFrom
 func (et *EventV1Transaction) DecodeFrom(d *types.Decoder) {
 	et.Transaction.DecodeFrom(d)
 	types.DecodeSlice(d, &et.SpentBigFileElements)
-	types.DecodeSlice(d, &et.SpentSiafundElements)
+	types.DecodeSlice(d, &et.SpentBigfundElements)
 }
 
 // EncodeTo implements types.EncoderTo
@@ -373,7 +373,7 @@ func (ev *Event) DecodeFrom(d *types.Decoder) {
 	ev.Confirmations = d.ReadUint64()
 	ev.Type = d.ReadString()
 	switch ev.Type {
-	case EventTypeMinerPayout, EventTypeFoundationSubsidy, EventTypeSiafundClaim:
+	case EventTypeMinerPayout, EventTypeFoundationSubsidy, EventTypeBigfundClaim:
 		var data EventPayout
 		data.DecodeFrom(d)
 		ev.Data = data

@@ -881,13 +881,13 @@ func IsRelevantTransaction(txn types.Transaction, addr types.Address) bool {
 		}
 	}
 
-	for _, bigi := range txn.SiafundInputs {
+	for _, bigi := range txn.BigfundInputs {
 		if bigi.UnlockConditions.UnlockHash() == addr {
 			return true
 		}
 	}
 
-	for _, sfo := range txn.SiafundOutputs {
+	for _, sfo := range txn.BigfundOutputs {
 		if sfo.Address == addr {
 			return true
 		}
@@ -913,11 +913,11 @@ func ExplicitCoveredFields(txn types.Transaction) (cf types.CoveredFields) {
 	for i := range txn.StorageProofs {
 		cf.StorageProofs = append(cf.StorageProofs, uint64(i))
 	}
-	for i := range txn.SiafundInputs {
-		cf.SiafundInputs = append(cf.SiafundInputs, uint64(i))
+	for i := range txn.BigfundInputs {
+		cf.BigfundInputs = append(cf.BigfundInputs, uint64(i))
 	}
-	for i := range txn.SiafundOutputs {
-		cf.SiafundOutputs = append(cf.SiafundOutputs, uint64(i))
+	for i := range txn.BigfundOutputs {
+		cf.BigfundOutputs = append(cf.BigfundOutputs, uint64(i))
 	}
 	for i := range txn.MinerFees {
 		cf.MinerFees = append(cf.MinerFees, uint64(i))

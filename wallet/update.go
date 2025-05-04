@@ -13,7 +13,7 @@ type (
 	// update.
 	ChainUpdate interface {
 		ForEachBigFileElement(func(bige types.BigFileElement, spent bool))
-		ForEachSiafundElement(func(sfe types.SiafundElement, spent bool))
+		ForEachBigfundElement(func(sfe types.BigfundElement, spent bool))
 		ForEachFileContractElement(func(fce types.FileContractElement, rev *types.FileContractElement, resolved, valid bool))
 		ForEachV2FileContractElement(func(fce types.V2FileContractElement, rev *types.V2FileContractElement, res types.V2FileContractResolutionType))
 	}
@@ -88,12 +88,12 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 	cs := cau.State
 	block := cau.Block
 	index := cs.Index
-	siacoinElements := make(map[types.BigFileOutputID]types.BigFileElement)
+	bigfileElements := make(map[types.BigFileOutputID]types.BigFileElement)
 
 	// cache the value of bigfile elements to use when calculating v1 outflow
 	for _, biged := range cau.BigFileElementDiffs() {
 		biged.BigFileElement.StateElement.MerkleProof = nil // clear the proof to save space
-		siacoinElements[biged.BigFileElement.ID] = biged.BigFileElement.Move()
+		bigfileElements[biged.BigFileElement.ID] = biged.BigFileElement.Move()
 	}
 
 	addEvent := func(id types.Hash256, eventType string, data EventData, maturityHeight uint64) {
@@ -118,15 +118,15 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		if !relevantV1Txn(txn, walletAddress) {
 			continue
 		}
-		for _, si := range txn.SiafundInputs {
+		for _, si := range txn.BigfundInputs {
 			if si.UnlockConditions.UnlockHash() == walletAddress {
 				outputID := si.ParentID.ClaimOutputID()
-				bige, ok := siacoinElements[outputID]
+				bige, ok := bigfileElements[outputID]
 				if !ok {
 					panic("missing claim bigfile element")
 				}
 
-				addEvent(types.Hash256(outputID), EventTypeSiafundClaim, EventPayout{
+				addEvent(types.Hash256(outputID), EventTypeBigfundClaim, EventPayout{
 					BigFileElement: bige.Copy(),
 				}, bige.MaturityHeight)
 			}
@@ -137,7 +137,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		}
 
 		for _, si := range txn.BigFileInputs {
-			se, ok := siacoinElements[types.BigFileOutputID(si.ParentID)]
+			se, ok := bigfileElements[types.BigFileOutputID(si.ParentID)]
 			if !ok {
 				panic("missing transaction bigfile element")
 			} else if se.BigFileOutput.Address != walletAddress {
@@ -152,15 +152,15 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		if !relevantV2Txn(txn, walletAddress) {
 			continue
 		}
-		for _, si := range txn.SiafundInputs {
-			if si.Parent.SiafundOutput.Address == walletAddress {
-				outputID := types.SiafundOutputID(si.Parent.ID).V2ClaimOutputID()
-				bige, ok := siacoinElements[outputID]
+		for _, si := range txn.BigfundInputs {
+			if si.Parent.BigfundOutput.Address == walletAddress {
+				outputID := types.BigfundOutputID(si.Parent.ID).V2ClaimOutputID()
+				bige, ok := bigfileElements[outputID]
 				if !ok {
 					panic("missing claim bigfile element")
 				}
 
-				addEvent(types.Hash256(outputID), EventTypeSiafundClaim, EventPayout{
+				addEvent(types.Hash256(outputID), EventTypeBigfundClaim, EventPayout{
 					BigFileElement: bige.Copy(),
 				}, bige.MaturityHeight)
 			}
@@ -184,7 +184,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 				}
 
 				outputID := fce.ID.ValidOutputID(i)
-				bige, ok := siacoinElements[outputID]
+				bige, ok := bigfileElements[outputID]
 				if !ok {
 					panic("missing bigfile element")
 				}
@@ -202,7 +202,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 				}
 
 				outputID := fce.ID.MissedOutputID(i)
-				bige, ok := siacoinElements[outputID]
+				bige, ok := bigfileElements[outputID]
 				if !ok {
 					panic("missing bigfile element")
 				}
@@ -226,7 +226,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		_, missed := fced.Resolution.(*types.V2FileContractExpiration)
 		if fce.V2FileContract.HostOutput.Address == walletAddress {
 			outputID := fce.ID.V2HostOutputID()
-			bige, ok := siacoinElements[outputID]
+			bige, ok := bigfileElements[outputID]
 			if !ok {
 				panic("missing bigfile element")
 			}
@@ -243,7 +243,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 
 		if fce.V2FileContract.RenterOutput.Address == walletAddress {
 			outputID := fce.ID.V2RenterOutputID()
-			bige, ok := siacoinElements[outputID]
+			bige, ok := bigfileElements[outputID]
 			if !ok {
 				panic("missing bigfile element")
 			}
@@ -266,7 +266,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		}
 
 		outputID := blockID.MinerOutputID(i)
-		bige, ok := siacoinElements[outputID]
+		bige, ok := bigfileElements[outputID]
 		if !ok {
 			panic("missing bigfile element")
 		}
@@ -276,7 +276,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 	}
 
 	outputID := blockID.FoundationOutputID()
-	if bige, ok := siacoinElements[outputID]; ok && bige.BigFileOutput.Address == walletAddress {
+	if bige, ok := bigfileElements[outputID]; ok && bige.BigFileOutput.Address == walletAddress {
 		addEvent(types.Hash256(outputID), EventTypeFoundationSubsidy, EventPayout{
 			BigFileElement: bige.Copy(),
 		}, bige.MaturityHeight)
