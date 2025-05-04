@@ -12,7 +12,7 @@ type (
 	// A ChainUpdate is an interface for iterating over the elements in a chain
 	// update.
 	ChainUpdate interface {
-		ForEachBigFileElement(func(sce types.BigFileElement, spent bool))
+		ForEachBigFileElement(func(bige types.BigFileElement, spent bool))
 		ForEachSiafundElement(func(sfe types.SiafundElement, spent bool))
 		ForEachFileContractElement(func(fce types.FileContractElement, rev *types.FileContractElement, resolved, valid bool))
 		ForEachV2FileContractElement(func(fce types.V2FileContractElement, rev *types.V2FileContractElement, res types.V2FileContractResolutionType))
@@ -91,9 +91,9 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 	siacoinElements := make(map[types.BigFileOutputID]types.BigFileElement)
 
 	// cache the value of bigfile elements to use when calculating v1 outflow
-	for _, sced := range cau.BigFileElementDiffs() {
-		sced.BigFileElement.StateElement.MerkleProof = nil // clear the proof to save space
-		siacoinElements[sced.BigFileElement.ID] = sced.BigFileElement.Move()
+	for _, biged := range cau.BigFileElementDiffs() {
+		biged.BigFileElement.StateElement.MerkleProof = nil // clear the proof to save space
+		siacoinElements[biged.BigFileElement.ID] = biged.BigFileElement.Move()
 	}
 
 	addEvent := func(id types.Hash256, eventType string, data EventData, maturityHeight uint64) {
@@ -121,14 +121,14 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		for _, si := range txn.SiafundInputs {
 			if si.UnlockConditions.UnlockHash() == walletAddress {
 				outputID := si.ParentID.ClaimOutputID()
-				sce, ok := siacoinElements[outputID]
+				bige, ok := siacoinElements[outputID]
 				if !ok {
 					panic("missing claim bigfile element")
 				}
 
 				addEvent(types.Hash256(outputID), EventTypeSiafundClaim, EventPayout{
-					BigFileElement: sce.Copy(),
-				}, sce.MaturityHeight)
+					BigFileElement: bige.Copy(),
+				}, bige.MaturityHeight)
 			}
 		}
 
@@ -155,14 +155,14 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		for _, si := range txn.SiafundInputs {
 			if si.Parent.SiafundOutput.Address == walletAddress {
 				outputID := types.SiafundOutputID(si.Parent.ID).V2ClaimOutputID()
-				sce, ok := siacoinElements[outputID]
+				bige, ok := siacoinElements[outputID]
 				if !ok {
 					panic("missing claim bigfile element")
 				}
 
 				addEvent(types.Hash256(outputID), EventTypeSiafundClaim, EventPayout{
-					BigFileElement: sce.Copy(),
-				}, sce.MaturityHeight)
+					BigFileElement: bige.Copy(),
+				}, bige.MaturityHeight)
 			}
 		}
 
@@ -184,16 +184,16 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 				}
 
 				outputID := fce.ID.ValidOutputID(i)
-				sce, ok := siacoinElements[outputID]
+				bige, ok := siacoinElements[outputID]
 				if !ok {
 					panic("missing bigfile element")
 				}
 
 				addEvent(types.Hash256(outputID), EventTypeV1ContractResolution, EventV1ContractResolution{
 					Parent:         fce.Copy(),
-					BigFileElement: sce.Copy(),
+					BigFileElement: bige.Copy(),
 					Missed:         false,
-				}, sce.MaturityHeight)
+				}, bige.MaturityHeight)
 			}
 		} else {
 			for i, so := range fce.FileContract.MissedProofOutputs {
@@ -202,16 +202,16 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 				}
 
 				outputID := fce.ID.MissedOutputID(i)
-				sce, ok := siacoinElements[outputID]
+				bige, ok := siacoinElements[outputID]
 				if !ok {
 					panic("missing bigfile element")
 				}
 
 				addEvent(types.Hash256(outputID), EventTypeV1ContractResolution, EventV1ContractResolution{
 					Parent:         fce.Copy(),
-					BigFileElement: sce.Copy(),
+					BigFileElement: bige.Copy(),
 					Missed:         true,
-				}, sce.MaturityHeight)
+				}, bige.MaturityHeight)
 			}
 		}
 	}
@@ -226,7 +226,7 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		_, missed := fced.Resolution.(*types.V2FileContractExpiration)
 		if fce.V2FileContract.HostOutput.Address == walletAddress {
 			outputID := fce.ID.V2HostOutputID()
-			sce, ok := siacoinElements[outputID]
+			bige, ok := siacoinElements[outputID]
 			if !ok {
 				panic("missing bigfile element")
 			}
@@ -236,14 +236,14 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 					Parent:     fce.Copy(),
 					Resolution: fced.Resolution,
 				},
-				BigFileElement: sce.Copy(),
+				BigFileElement: bige.Copy(),
 				Missed:         missed,
-			}, sce.MaturityHeight)
+			}, bige.MaturityHeight)
 		}
 
 		if fce.V2FileContract.RenterOutput.Address == walletAddress {
 			outputID := fce.ID.V2RenterOutputID()
-			sce, ok := siacoinElements[outputID]
+			bige, ok := siacoinElements[outputID]
 			if !ok {
 				panic("missing bigfile element")
 			}
@@ -253,9 +253,9 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 					Parent:     fce.Copy(),
 					Resolution: fced.Resolution,
 				},
-				BigFileElement: sce.Copy(),
+				BigFileElement: bige.Copy(),
 				Missed:         missed,
-			}, sce.MaturityHeight)
+			}, bige.MaturityHeight)
 		}
 	}
 
@@ -266,20 +266,20 @@ func appliedEvents(cau chain.ApplyUpdate, walletAddress types.Address) (events [
 		}
 
 		outputID := blockID.MinerOutputID(i)
-		sce, ok := siacoinElements[outputID]
+		bige, ok := siacoinElements[outputID]
 		if !ok {
 			panic("missing bigfile element")
 		}
 		addEvent(types.Hash256(outputID), EventTypeMinerPayout, EventPayout{
-			BigFileElement: sce.Copy(),
-		}, sce.MaturityHeight)
+			BigFileElement: bige.Copy(),
+		}, bige.MaturityHeight)
 	}
 
 	outputID := blockID.FoundationOutputID()
-	if sce, ok := siacoinElements[outputID]; ok && sce.BigFileOutput.Address == walletAddress {
+	if bige, ok := siacoinElements[outputID]; ok && bige.BigFileOutput.Address == walletAddress {
 		addEvent(types.Hash256(outputID), EventTypeFoundationSubsidy, EventPayout{
-			BigFileElement: sce.Copy(),
-		}, sce.MaturityHeight)
+			BigFileElement: bige.Copy(),
+		}, bige.MaturityHeight)
 	}
 	return
 }
@@ -292,16 +292,16 @@ func (sw *SingleAddressWallet) applyChainUpdate(tx UpdateTx, address types.Addre
 	}
 
 	var createdUTXOs, spentUTXOs []types.BigFileElement
-	for _, sced := range cau.BigFileElementDiffs() {
+	for _, biged := range cau.BigFileElementDiffs() {
 		switch {
-		case sced.Created && sced.Spent:
+		case biged.Created && biged.Spent:
 			continue // ignore ephemeral elements
-		case sced.BigFileElement.BigFileOutput.Address != address:
+		case biged.BigFileElement.BigFileOutput.Address != address:
 			continue // ignore elements that are not related to the wallet
-		case sced.Created:
-			createdUTXOs = append(createdUTXOs, sced.BigFileElement.Share())
-		case sced.Spent:
-			spentUTXOs = append(spentUTXOs, sced.BigFileElement.Share())
+		case biged.Created:
+			createdUTXOs = append(createdUTXOs, biged.BigFileElement.Share())
+		case biged.Spent:
+			spentUTXOs = append(spentUTXOs, biged.BigFileElement.Share())
 		default:
 			panic("unexpected bigfile element") // developer error
 		}
@@ -319,16 +319,16 @@ func (sw *SingleAddressWallet) applyChainUpdate(tx UpdateTx, address types.Addre
 // revertChainUpdate atomically reverts a chain update from a wallet
 func (sw *SingleAddressWallet) revertChainUpdate(tx UpdateTx, revertedIndex types.ChainIndex, address types.Address, cru chain.RevertUpdate) error {
 	var removedUTXOs, unspentUTXOs []types.BigFileElement
-	for _, sced := range cru.BigFileElementDiffs() {
+	for _, biged := range cru.BigFileElementDiffs() {
 		switch {
-		case sced.Created && sced.Spent:
+		case biged.Created && biged.Spent:
 			continue // ignore ephemeral elements
-		case sced.BigFileElement.BigFileOutput.Address != address:
+		case biged.BigFileElement.BigFileOutput.Address != address:
 			continue // ignore elements that are not related to the wallet
-		case sced.Spent:
-			unspentUTXOs = append(unspentUTXOs, sced.BigFileElement.Share())
-		case sced.Created:
-			removedUTXOs = append(removedUTXOs, sced.BigFileElement.Share())
+		case biged.Spent:
+			unspentUTXOs = append(unspentUTXOs, biged.BigFileElement.Share())
+		case biged.Created:
+			removedUTXOs = append(removedUTXOs, biged.BigFileElement.Share())
 		default:
 			panic("unexpected bigfile element") // developer error
 		}

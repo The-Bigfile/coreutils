@@ -119,15 +119,15 @@ func (sw *SingleAddressWallet) Balance() (balance Balance, err error) {
 	tpoolSpent := make(map[types.BigFileOutputID]bool)
 	tpoolUtxos := make(map[types.BigFileOutputID]types.BigFileElement)
 	for _, txn := range sw.cm.PoolTransactions() {
-		for _, sci := range txn.BigFileInputs {
-			if sci.UnlockConditions.UnlockHash() != sw.addr {
+		for _, bigi := range txn.BigFileInputs {
+			if bigi.UnlockConditions.UnlockHash() != sw.addr {
 				continue
 			}
-			tpoolSpent[sci.ParentID] = true
-			delete(tpoolUtxos, sci.ParentID)
+			tpoolSpent[bigi.ParentID] = true
+			delete(tpoolUtxos, bigi.ParentID)
 		}
-		for i, sco := range txn.BigFileOutputs {
-			if sco.Address != sw.addr {
+		for i, bigo := range txn.BigFileOutputs {
+			if bigo.Address != sw.addr {
 				continue
 			}
 
@@ -135,7 +135,7 @@ func (sw *SingleAddressWallet) Balance() (balance Balance, err error) {
 			tpoolUtxos[outputID] = types.BigFileElement{
 				ID:            types.BigFileOutputID(outputID),
 				StateElement:  types.StateElement{LeafIndex: types.UnassignedLeafIndex},
-				BigFileOutput: sco,
+				BigFileOutput: bigo,
 			}
 		}
 	}
@@ -148,31 +148,31 @@ func (sw *SingleAddressWallet) Balance() (balance Balance, err error) {
 			tpoolSpent[si.Parent.ID] = true
 			delete(tpoolUtxos, si.Parent.ID)
 		}
-		for i, sco := range txn.BigFileOutputs {
-			if sco.Address != sw.addr {
+		for i, bigo := range txn.BigFileOutputs {
+			if bigo.Address != sw.addr {
 				continue
 			}
-			sce := txn.EphemeralBigFileOutput(i)
-			tpoolUtxos[sce.ID] = sce.Move()
+			bige := txn.EphemeralBigFileOutput(i)
+			tpoolUtxos[bige.ID] = bige.Move()
 		}
 	}
 
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 	bh := sw.cm.TipState().Index.Height
-	for _, sco := range outputs {
-		if sco.MaturityHeight > bh {
-			balance.Immature = balance.Immature.Add(sco.BigFileOutput.Value)
+	for _, bigo := range outputs {
+		if bigo.MaturityHeight > bh {
+			balance.Immature = balance.Immature.Add(bigo.BigFileOutput.Value)
 		} else {
-			balance.Confirmed = balance.Confirmed.Add(sco.BigFileOutput.Value)
-			if !sw.isLocked(sco.ID) && !tpoolSpent[sco.ID] {
-				balance.Spendable = balance.Spendable.Add(sco.BigFileOutput.Value)
+			balance.Confirmed = balance.Confirmed.Add(bigo.BigFileOutput.Value)
+			if !sw.isLocked(bigo.ID) && !tpoolSpent[bigo.ID] {
+				balance.Spendable = balance.Spendable.Add(bigo.BigFileOutput.Value)
 			}
 		}
 	}
 
-	for _, sco := range tpoolUtxos {
-		balance.Unconfirmed = balance.Unconfirmed.Add(sco.BigFileOutput.Value)
+	for _, bigo := range tpoolUtxos {
+		balance.Unconfirmed = balance.Unconfirmed.Add(bigo.BigFileOutput.Value)
 	}
 	return
 }
@@ -201,8 +201,8 @@ func (sw *SingleAddressWallet) SpendableOutputs() ([]types.BigFileElement, error
 	// fetch outputs currently in the pool
 	inPool := make(map[types.BigFileOutputID]bool)
 	for _, txn := range sw.cm.PoolTransactions() {
-		for _, sci := range txn.BigFileInputs {
-			inPool[sci.ParentID] = true
+		for _, bigi := range txn.BigFileInputs {
+			inPool[bigi.ParentID] = true
 		}
 	}
 
@@ -215,11 +215,11 @@ func (sw *SingleAddressWallet) SpendableOutputs() ([]types.BigFileElement, error
 
 	// filter outputs that are either locked, in the pool or have not yet matured
 	unspent := utxos[:0]
-	for _, sce := range utxos {
-		if sw.isLocked(sce.ID) || inPool[sce.ID] || bh < sce.MaturityHeight {
+	for _, bige := range utxos {
+		if sw.isLocked(bige.ID) || inPool[bige.ID] || bh < bige.MaturityHeight {
 			continue
 		}
-		unspent = append(unspent, sce.Copy())
+		unspent = append(unspent, bige.Copy())
 	}
 	return unspent, nil
 }
@@ -232,26 +232,26 @@ func (sw *SingleAddressWallet) selectUTXOs(amount types.Currency, inputs int, us
 	tpoolSpent := make(map[types.BigFileOutputID]bool)
 	tpoolUtxos := make(map[types.BigFileOutputID]types.BigFileElement)
 	for _, txn := range sw.cm.PoolTransactions() {
-		for _, sci := range txn.BigFileInputs {
-			tpoolSpent[sci.ParentID] = true
-			delete(tpoolUtxos, sci.ParentID)
+		for _, bigi := range txn.BigFileInputs {
+			tpoolSpent[bigi.ParentID] = true
+			delete(tpoolUtxos, bigi.ParentID)
 		}
-		for i, sco := range txn.BigFileOutputs {
+		for i, bigo := range txn.BigFileOutputs {
 			tpoolUtxos[txn.BigFileOutputID(i)] = types.BigFileElement{
 				ID:            txn.BigFileOutputID(i),
 				StateElement:  types.StateElement{LeafIndex: types.UnassignedLeafIndex},
-				BigFileOutput: sco,
+				BigFileOutput: bigo,
 			}
 		}
 	}
 	for _, txn := range sw.cm.V2PoolTransactions() {
-		for _, sci := range txn.BigFileInputs {
-			tpoolSpent[sci.Parent.ID] = true
-			delete(tpoolUtxos, sci.Parent.ID)
+		for _, bigi := range txn.BigFileInputs {
+			tpoolSpent[bigi.Parent.ID] = true
+			delete(tpoolUtxos, bigi.Parent.ID)
 		}
 		for i := range txn.BigFileOutputs {
-			sce := txn.EphemeralBigFileOutput(i)
-			tpoolUtxos[sce.ID] = sce.Move()
+			bige := txn.EphemeralBigFileOutput(i)
+			tpoolUtxos[bige.ID] = bige.Move()
 		}
 	}
 
@@ -260,15 +260,15 @@ func (sw *SingleAddressWallet) selectUTXOs(amount types.Currency, inputs int, us
 	utxos := make([]types.BigFileElement, 0, len(elements))
 	var usedSum types.Currency
 	var immatureSum types.Currency
-	for _, sce := range elements {
-		if used := sw.isLocked(sce.ID) || tpoolSpent[sce.ID]; used {
-			usedSum = usedSum.Add(sce.BigFileOutput.Value)
+	for _, bige := range elements {
+		if used := sw.isLocked(bige.ID) || tpoolSpent[bige.ID]; used {
+			usedSum = usedSum.Add(bige.BigFileOutput.Value)
 			continue
-		} else if immature := cs.Index.Height < sce.MaturityHeight; immature {
-			immatureSum = immatureSum.Add(sce.BigFileOutput.Value)
+		} else if immature := cs.Index.Height < bige.MaturityHeight; immature {
+			immatureSum = immatureSum.Add(bige.BigFileOutput.Value)
 			continue
 		}
-		utxos = append(utxos, sce.Share())
+		utxos = append(utxos, bige.Share())
 	}
 
 	// sort by value, descending
@@ -279,12 +279,12 @@ func (sw *SingleAddressWallet) selectUTXOs(amount types.Currency, inputs int, us
 	var unconfirmedUTXOs []types.BigFileElement
 	var unconfirmedSum types.Currency
 	if useUnconfirmed {
-		for _, sce := range tpoolUtxos {
-			if sce.BigFileOutput.Address != sw.addr || sw.isLocked(sce.ID) {
+		for _, bige := range tpoolUtxos {
+			if bige.BigFileOutput.Address != sw.addr || sw.isLocked(bige.ID) {
 				continue
 			}
-			unconfirmedUTXOs = append(unconfirmedUTXOs, sce.Share())
-			unconfirmedSum = unconfirmedSum.Add(sce.BigFileOutput.Value)
+			unconfirmedUTXOs = append(unconfirmedUTXOs, bige.Share())
+			unconfirmedSum = unconfirmedSum.Add(bige.BigFileOutput.Value)
 		}
 	}
 
@@ -296,20 +296,20 @@ func (sw *SingleAddressWallet) selectUTXOs(amount types.Currency, inputs int, us
 	// fund the transaction using the largest utxos first
 	var selected []types.BigFileElement
 	var inputSum types.Currency
-	for i, sce := range utxos {
+	for i, bige := range utxos {
 		if inputSum.Cmp(amount) >= 0 {
 			utxos = utxos[i:]
 			break
 		}
-		selected = append(selected, sce.Share())
-		inputSum = inputSum.Add(sce.BigFileOutput.Value)
+		selected = append(selected, bige.Share())
+		inputSum = inputSum.Add(bige.BigFileOutput.Value)
 	}
 
 	if inputSum.Cmp(amount) < 0 && useUnconfirmed {
 		// try adding unconfirmed utxos.
-		for _, sce := range unconfirmedUTXOs {
-			selected = append(selected, sce.Share())
-			inputSum = inputSum.Add(sce.BigFileOutput.Value)
+		for _, bige := range unconfirmedUTXOs {
+			selected = append(selected, bige.Share())
+			inputSum = inputSum.Add(bige.BigFileOutput.Value)
 			if inputSum.Cmp(amount) >= 0 {
 				break
 			}
@@ -336,9 +336,9 @@ func (sw *SingleAddressWallet) selectUTXOs(amount types.Currency, inputs int, us
 				break
 			}
 
-			sce := &defraggable[i]
-			selected = append(selected, sce.Share())
-			inputSum = inputSum.Add(sce.BigFileOutput.Value)
+			bige := &defraggable[i]
+			selected = append(selected, bige.Share())
+			inputSum = inputSum.Add(bige.BigFileOutput.Value)
 			txnInputs++
 		}
 	}
@@ -376,13 +376,13 @@ func (sw *SingleAddressWallet) FundTransaction(txn *types.Transaction, amount ty
 	}
 
 	toSign := make([]types.Hash256, len(selected))
-	for i, sce := range selected {
+	for i, bige := range selected {
 		txn.BigFileInputs = append(txn.BigFileInputs, types.BigFileInput{
-			ParentID:         sce.ID,
+			ParentID:         bige.ID,
 			UnlockConditions: types.StandardUnlockConditions(sw.priv.PublicKey()),
 		})
-		toSign[i] = types.Hash256(sce.ID)
-		sw.locked[sce.ID] = time.Now().Add(sw.cfg.ReservationDuration)
+		toSign[i] = types.Hash256(bige.ID)
+		sw.locked[bige.ID] = time.Now().Add(sw.cfg.ReservationDuration)
 	}
 
 	return toSign, nil
@@ -446,12 +446,12 @@ func (sw *SingleAddressWallet) FundV2Transaction(txn *types.V2Transaction, amoun
 	}
 
 	toSign := make([]int, 0, len(selected))
-	for _, sce := range selected {
+	for _, bige := range selected {
 		toSign = append(toSign, len(txn.BigFileInputs))
 		txn.BigFileInputs = append(txn.BigFileInputs, types.V2BigFileInput{
-			Parent: sce.Copy(),
+			Parent: bige.Copy(),
 		})
-		sw.locked[sce.ID] = time.Now().Add(sw.cfg.ReservationDuration)
+		sw.locked[bige.ID] = time.Now().Add(sw.cfg.ReservationDuration)
 	}
 
 	return sw.tip, toSign, nil
@@ -535,14 +535,14 @@ func (sw *SingleAddressWallet) UnconfirmedEvents() (annotated []Event, err error
 		}
 
 		var outflow types.Currency
-		for _, sci := range txn.BigFileInputs {
-			sce, ok := utxos[sci.ParentID]
+		for _, bigi := range txn.BigFileInputs {
+			bige, ok := utxos[bigi.ParentID]
 			if !ok {
 				// ignore inputs that don't belong to the wallet
 				continue
 			}
-			outflow = outflow.Add(sce.BigFileOutput.Value)
-			event.SpentBigFileElements = append(event.SpentBigFileElements, sce.Share())
+			outflow = outflow.Add(bige.BigFileOutput.Value)
+			event.SpentBigFileElements = append(event.SpentBigFileElements, bige.Share())
 		}
 
 		var inflow types.Currency
@@ -566,18 +566,18 @@ func (sw *SingleAddressWallet) UnconfirmedEvents() (annotated []Event, err error
 
 	for _, txn := range sw.cm.V2PoolTransactions() {
 		var inflow, outflow types.Currency
-		for _, sci := range txn.BigFileInputs {
-			if sci.Parent.BigFileOutput.Address != sw.addr {
+		for _, bigi := range txn.BigFileInputs {
+			if bigi.Parent.BigFileOutput.Address != sw.addr {
 				continue
 			}
-			outflow = outflow.Add(sci.Parent.BigFileOutput.Value)
+			outflow = outflow.Add(bigi.Parent.BigFileOutput.Value)
 		}
 
-		for _, sco := range txn.BigFileOutputs {
-			if sco.Address != sw.addr {
+		for _, bigo := range txn.BigFileOutputs {
+			if bigo.Address != sw.addr {
 				continue
 			}
-			inflow = inflow.Add(sco.Value)
+			inflow = inflow.Add(bigo.Value)
 		}
 
 		// skip transactions that don't affect the wallet
@@ -594,23 +594,23 @@ func (sw *SingleAddressWallet) selectRedistributeUTXOs(bh uint64, outputs int, a
 	// fetch outputs currently in the pool
 	inPool := make(map[types.BigFileOutputID]bool)
 	for _, txn := range sw.cm.PoolTransactions() {
-		for _, sci := range txn.BigFileInputs {
-			inPool[sci.ParentID] = true
+		for _, bigi := range txn.BigFileInputs {
+			inPool[bigi.ParentID] = true
 		}
 	}
 	for _, txn := range sw.cm.V2PoolTransactions() {
-		for _, sci := range txn.BigFileInputs {
-			inPool[sci.Parent.ID] = true
+		for _, bigi := range txn.BigFileInputs {
+			inPool[bigi.Parent.ID] = true
 		}
 	}
 
 	// adjust the number of desired outputs for any output we encounter that is
 	// unused, matured and has the same value
 	utxos := make([]types.BigFileElement, 0, len(elements))
-	for _, sce := range elements {
-		inUse := sw.isLocked(sce.ID) || inPool[sce.ID]
-		matured := bh >= sce.MaturityHeight
-		sameValue := sce.BigFileOutput.Value.Equals(amount)
+	for _, bige := range elements {
+		inUse := sw.isLocked(bige.ID) || inPool[bige.ID]
+		matured := bh >= bige.MaturityHeight
+		sameValue := bige.BigFileOutput.Value.Equals(amount)
 
 		// adjust number of desired outputs
 		if !inUse && matured && sameValue {
@@ -619,7 +619,7 @@ func (sw *SingleAddressWallet) selectRedistributeUTXOs(bh uint64, outputs int, a
 
 		// collect usable outputs for defragging
 		if !inUse && matured && !sameValue {
-			utxos = append(utxos, sce.Share())
+			utxos = append(utxos, bige.Share())
 		}
 	}
 	// desc sort
@@ -687,8 +687,8 @@ func (sw *SingleAddressWallet) Redistribute(outputs int, amount, feePerByte type
 		// collect outputs that cover the total amount
 		var inputs []types.BigFileElement
 		want := amount.Mul64(uint64(len(txn.BigFileOutputs)))
-		for _, sce := range utxos {
-			inputs = append(inputs, sce.Share())
+		for _, bige := range utxos {
+			inputs = append(inputs, bige.Share())
 			fee := feePerInput.Mul64(uint64(len(inputs))).Add(outputFees)
 			if SumOutputs(inputs).Cmp(want.Add(fee)) > 0 {
 				break
@@ -724,13 +724,13 @@ func (sw *SingleAddressWallet) Redistribute(outputs int, amount, feePerByte type
 
 		// add the inputs
 		toSignTxn := make([]types.Hash256, 0, len(inputs))
-		for _, sce := range inputs {
-			toSignTxn = append(toSignTxn, types.Hash256(sce.ID))
+		for _, bige := range inputs {
+			toSignTxn = append(toSignTxn, types.Hash256(bige.ID))
 			txn.BigFileInputs = append(txn.BigFileInputs, types.BigFileInput{
-				ParentID:         sce.ID,
+				ParentID:         bige.ID,
 				UnlockConditions: types.StandardUnlockConditions(sw.priv.PublicKey()),
 			})
-			sw.locked[sce.ID] = time.Now().Add(sw.cfg.ReservationDuration)
+			sw.locked[bige.ID] = time.Now().Add(sw.cfg.ReservationDuration)
 		}
 		txns = append(txns, txn)
 		toSign = append(toSign, toSignTxn)
@@ -792,8 +792,8 @@ func (sw *SingleAddressWallet) RedistributeV2(outputs int, amount, feePerByte ty
 		// collect outputs that cover the total amount
 		var inputs []types.BigFileElement
 		want := amount.Mul64(uint64(len(txn.BigFileOutputs)))
-		for _, sce := range utxos {
-			inputs = append(inputs, sce.Copy())
+		for _, bige := range utxos {
+			inputs = append(inputs, bige.Copy())
 			fee := feePerInput.Mul64(uint64(len(inputs))).Add(outputFees)
 			if SumOutputs(inputs).Cmp(want.Add(fee)) > 0 {
 				break
@@ -829,12 +829,12 @@ func (sw *SingleAddressWallet) RedistributeV2(outputs int, amount, feePerByte ty
 
 		// add the inputs
 		toSignTxn := make([]int, 0, len(inputs))
-		for _, sce := range inputs {
+		for _, bige := range inputs {
 			toSignTxn = append(toSignTxn, len(txn.BigFileInputs))
 			txn.BigFileInputs = append(txn.BigFileInputs, types.V2BigFileInput{
-				Parent: sce.Move(),
+				Parent: bige.Move(),
 			})
-			sw.locked[sce.ID] = time.Now().Add(sw.cfg.ReservationDuration)
+			sw.locked[bige.ID] = time.Now().Add(sw.cfg.ReservationDuration)
 		}
 		txns = append(txns, txn)
 		toSign = append(toSign, toSignTxn)
@@ -869,20 +869,20 @@ func (sw *SingleAddressWallet) isLocked(id types.BigFileOutputID) bool {
 // IsRelevantTransaction returns true if the v1 transaction is relevant to the
 // address
 func IsRelevantTransaction(txn types.Transaction, addr types.Address) bool {
-	for _, sci := range txn.BigFileInputs {
-		if sci.UnlockConditions.UnlockHash() == addr {
+	for _, bigi := range txn.BigFileInputs {
+		if bigi.UnlockConditions.UnlockHash() == addr {
 			return true
 		}
 	}
 
-	for _, sco := range txn.BigFileOutputs {
-		if sco.Address == addr {
+	for _, bigo := range txn.BigFileOutputs {
+		if bigo.Address == addr {
 			return true
 		}
 	}
 
-	for _, sci := range txn.SiafundInputs {
-		if sci.UnlockConditions.UnlockHash() == addr {
+	for _, bigi := range txn.SiafundInputs {
+		if bigi.UnlockConditions.UnlockHash() == addr {
 			return true
 		}
 	}

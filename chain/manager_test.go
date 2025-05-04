@@ -111,10 +111,10 @@ func TestTxPool(t *testing.T) {
 	giftPrivateKey := types.GeneratePrivateKey()
 	giftPublicKey := giftPrivateKey.PublicKey()
 	giftAddress := types.StandardUnlockHash(giftPublicKey)
-	giftAmountSC := types.BigFiles(100)
+	giftAmountBIG := types.BigFiles(100)
 	giftTxn := types.Transaction{
 		BigFileOutputs: []types.BigFileOutput{
-			{Address: giftAddress, Value: giftAmountSC},
+			{Address: giftAddress, Value: giftAmountBIG},
 		},
 	}
 	genesisBlock.Transactions = []types.Transaction{giftTxn}
@@ -136,10 +136,10 @@ func TestTxPool(t *testing.T) {
 	})
 
 	signTxn := func(txn *types.Transaction) {
-		for _, sci := range txn.BigFileInputs {
-			sig := giftPrivateKey.SignHash(cm.TipState().WholeSigHash(*txn, types.Hash256(sci.ParentID), 0, 0, nil))
+		for _, bigi := range txn.BigFileInputs {
+			sig := giftPrivateKey.SignHash(cm.TipState().WholeSigHash(*txn, types.Hash256(bigi.ParentID), 0, 0, nil))
 			txn.Signatures = append(txn.Signatures, types.TransactionSignature{
-				ParentID:       types.Hash256(sci.ParentID),
+				ParentID:       types.Hash256(bigi.ParentID),
 				CoveredFields:  types.CoveredFields{WholeTransaction: true},
 				PublicKeyIndex: 0,
 				Signature:      sig[:],
@@ -155,7 +155,7 @@ func TestTxPool(t *testing.T) {
 		}},
 		BigFileOutputs: []types.BigFileOutput{{
 			Address: giftAddress,
-			Value:   giftAmountSC,
+			Value:   giftAmountBIG,
 		}},
 	}
 	signTxn(&parentTxn)
@@ -173,7 +173,7 @@ func TestTxPool(t *testing.T) {
 			ParentID:         parentTxn.BigFileOutputID(0),
 			UnlockConditions: types.StandardUnlockConditions(giftPublicKey),
 		}},
-		MinerFees: []types.Currency{giftAmountSC},
+		MinerFees: []types.Currency{giftAmountBIG},
 	}
 	signTxn(&childTxn)
 	// submitted alone, it should be rejected
@@ -204,7 +204,7 @@ func TestTxPool(t *testing.T) {
 		ParentID:  cm.TipState().Index.ID,
 		Timestamp: types.CurrentTimestamp(),
 		MinerPayouts: []types.BigFileOutput{{
-			Value:   cm.TipState().BlockReward().Add(giftAmountSC),
+			Value:   cm.TipState().BlockReward().Add(giftAmountBIG),
 			Address: types.Address(frand.Entropy256()),
 		}},
 		Transactions: cm.PoolTransactions(),
@@ -231,10 +231,10 @@ func TestUpdateV2TransactionSet(t *testing.T) {
 	giftPrivateKey := types.GeneratePrivateKey()
 	giftPublicKey := giftPrivateKey.PublicKey()
 	giftAddress := types.StandardAddress(giftPublicKey)
-	giftAmountSC := types.BigFiles(100)
+	giftAmountBIG := types.BigFiles(100)
 	giftTxn := types.Transaction{
 		BigFileOutputs: []types.BigFileOutput{
-			{Address: giftAddress, Value: giftAmountSC},
+			{Address: giftAddress, Value: giftAmountBIG},
 		},
 	}
 	genesisBlock.Transactions = []types.Transaction{giftTxn}
@@ -250,7 +250,7 @@ func TestUpdateV2TransactionSet(t *testing.T) {
 				Signatures: []types.Signature{},
 			},
 		}},
-		MinerFee: giftAmountSC,
+		MinerFee: giftAmountBIG,
 	}
 	txn.BigFileInputs[0].SatisfiedPolicy.Signatures = []types.Signature{giftPrivateKey.SignHash(cs.InputSigHash(txn))}
 

@@ -43,10 +43,10 @@ func TestMiner(t *testing.T) {
 	}
 
 	// sign the inputs
-	for _, sci := range txn.BigFileInputs {
-		sig := sk.SignHash(cm.TipState().WholeSigHash(txn, types.Hash256(sci.ParentID), 0, 0, nil))
+	for _, bigi := range txn.BigFileInputs {
+		sig := sk.SignHash(cm.TipState().WholeSigHash(txn, types.Hash256(bigi.ParentID), 0, 0, nil))
 		txn.Signatures = append(txn.Signatures, types.TransactionSignature{
-			ParentID:       types.Hash256(sci.ParentID),
+			ParentID:       types.Hash256(bigi.ParentID),
 			CoveredFields:  types.CoveredFields{WholeTransaction: true},
 			PublicKeyIndex: 0,
 			Signature:      sig[:],
@@ -111,14 +111,14 @@ func TestV2MineBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, cau := range applied {
-		for _, sced := range cau.BigFileElementDiffs() {
-			sce := sced.BigFileElement
-			if sce.BigFileOutput.Address == types.AnyoneCanSpend().Address() {
-				if sced.Created {
-					elements[sce.ID] = sce
+		for _, biged := range cau.BigFileElementDiffs() {
+			bige := biged.BigFileElement
+			if bige.BigFileOutput.Address == types.AnyoneCanSpend().Address() {
+				if biged.Created {
+					elements[bige.ID] = bige
 				}
-				if sced.Spent {
-					delete(elements, sce.ID)
+				if biged.Spent {
+					delete(elements, bige.ID)
 				}
 			}
 		}

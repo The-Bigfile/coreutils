@@ -120,11 +120,11 @@ func transactionValues(t *testing.T, wm *wallet.SingleAddressWallet, txn types.T
 		if si.UnlockConditions.UnlockHash() != addr {
 			continue
 		}
-		sce, ok := elements[si.ParentID]
+		bige, ok := elements[si.ParentID]
 		if !ok {
 			t.Fatalf("missing bigfile element %v", si.ParentID)
 		}
-		outflow = outflow.Add(sce.BigFileOutput.Value)
+		outflow = outflow.Add(bige.BigFileOutput.Value)
 	}
 
 	for _, so := range txn.BigFileOutputs {

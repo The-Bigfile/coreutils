@@ -711,9 +711,9 @@ func (m *Manager) revertPoolUpdate(cru consensus.RevertUpdate, cs consensus.Stat
 			return
 		} else if uncreated == nil {
 			uncreated = make(map[types.Hash256]bool)
-			for _, sced := range cru.BigFileElementDiffs() {
-				if sced.Created {
-					uncreated[types.Hash256(sced.BigFileElement.ID)] = true
+			for _, biged := range cru.BigFileElementDiffs() {
+				if biged.Created {
+					uncreated[types.Hash256(biged.BigFileElement.ID)] = true
 				}
 			}
 			for _, sfed := range cru.SiafundElementDiffs() {
@@ -769,9 +769,9 @@ func (m *Manager) applyPoolUpdate(cau consensus.ApplyUpdate, cs consensus.State)
 		} else if newElements == nil {
 			newElements = make(map[types.Hash256]types.StateElement)
 
-			for _, sced := range cau.BigFileElementDiffs() {
-				if sced.Created {
-					newElements[types.Hash256(sced.BigFileElement.ID)] = sced.BigFileElement.StateElement.Share()
+			for _, biged := range cau.BigFileElementDiffs() {
+				if biged.Created {
+					newElements[types.Hash256(biged.BigFileElement.ID)] = biged.BigFileElement.StateElement.Share()
 				}
 			}
 			for _, sfed := range cau.SiafundElementDiffs() {
@@ -950,8 +950,8 @@ func (m *Manager) UnconfirmedParents(txn types.Transaction) []types.Transaction 
 		}
 	}
 	addParents := func(txn types.Transaction) {
-		for _, sci := range txn.BigFileInputs {
-			check(types.Hash256(sci.ParentID))
+		for _, bigi := range txn.BigFileInputs {
+			check(types.Hash256(bigi.ParentID))
 		}
 		for _, sfi := range txn.SiafundInputs {
 			check(types.Hash256(sfi.ParentID))
@@ -1012,8 +1012,8 @@ func (m *Manager) V2TransactionSet(basis types.ChainIndex, txn types.V2Transacti
 		}
 	}
 	addParents := func(txn types.V2Transaction) {
-		for _, sci := range txn.BigFileInputs {
-			check(types.Hash256(sci.Parent.ID))
+		for _, bigi := range txn.BigFileInputs {
+			check(types.Hash256(bigi.Parent.ID))
 		}
 		for _, sfi := range txn.SiafundInputs {
 			check(types.Hash256(sfi.Parent.ID))
@@ -1135,9 +1135,9 @@ func (m *Manager) updateV2TransactionProofs(txns []types.V2Transaction, from, to
 			confirmedTxns[txn.ID()] = true
 		}
 		confirmedStateElements := make(map[types.Hash256]types.StateElement)
-		for _, sced := range cau.BigFileElementDiffs() {
-			if sced.Created {
-				confirmedStateElements[types.Hash256(sced.BigFileElement.ID)] = sced.BigFileElement.StateElement.Share()
+		for _, biged := range cau.BigFileElementDiffs() {
+			if biged.Created {
+				confirmedStateElements[types.Hash256(biged.BigFileElement.ID)] = biged.BigFileElement.StateElement.Share()
 			}
 		}
 		for _, sfed := range cau.SiafundElementDiffs() {
