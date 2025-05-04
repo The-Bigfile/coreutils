@@ -403,7 +403,7 @@ var (
 	bBlocks               = []byte("Blocks")
 	bFileContractElements = []byte("FileContracts")
 	bBigFileElements      = []byte("BigFileElements")
-	bSiafundElements      = []byte("SiafundElements")
+	bBigfundElements      = []byte("BigfundElements")
 	bTree                 = []byte("Tree")
 
 	keyHeight = []byte("Height")
@@ -562,21 +562,21 @@ func (db *DBStore) deleteBigFileElement(id types.BigFileOutputID) {
 	db.bucket(bBigFileElements).delete(id[:])
 }
 
-func (db *DBStore) getSiafundElement(id types.SiafundOutputID, numLeaves uint64) (sfe types.SiafundElement, ok bool) {
-	ok = db.bucket(bSiafundElements).get(id[:], &sfe)
+func (db *DBStore) getBigfundElement(id types.BigfundOutputID, numLeaves uint64) (sfe types.BigfundElement, ok bool) {
+	ok = db.bucket(bBigfundElements).get(id[:], &sfe)
 	if ok {
 		sfe.StateElement.MerkleProof = db.getElementProof(sfe.StateElement.LeafIndex, numLeaves)
 	}
 	return
 }
 
-func (db *DBStore) putSiafundElement(sfe types.SiafundElement) {
+func (db *DBStore) putBigfundElement(sfe types.BigfundElement) {
 	sfe.StateElement.MerkleProof = nil
-	db.bucket(bSiafundElements).put(sfe.ID[:], sfe.Share())
+	db.bucket(bBigfundElements).put(sfe.ID[:], sfe.Share())
 }
 
-func (db *DBStore) deleteSiafundElement(id types.SiafundOutputID) {
-	db.bucket(bSiafundElements).delete(id[:])
+func (db *DBStore) deleteBigfundElement(id types.BigfundOutputID) {
+	db.bucket(bBigfundElements).delete(id[:])
 }
 
 func (db *DBStore) getFileContractElement(id types.FileContractID, numLeaves uint64) (fce types.FileContractElement, ok bool) {
@@ -651,13 +651,13 @@ func (db *DBStore) applyElements(cau consensus.ApplyUpdate) {
 			db.putBigFileElement(biged.BigFileElement.Share())
 		}
 	}
-	for _, sfed := range cau.SiafundElementDiffs() {
+	for _, sfed := range cau.BigfundElementDiffs() {
 		if sfed.Created && sfed.Spent {
 			continue // ephemeral
 		} else if sfed.Spent {
-			db.deleteSiafundElement(sfed.SiafundElement.ID)
+			db.deleteBigfundElement(sfed.BigfundElement.ID)
 		} else {
-			db.putSiafundElement(sfed.SiafundElement.Share())
+			db.putBigfundElement(sfed.BigfundElement.Share())
 		}
 	}
 	for _, fced := range cau.FileContractElementDiffs() {
@@ -707,15 +707,15 @@ func (db *DBStore) revertElements(cru consensus.RevertUpdate) {
 		}
 	}
 
-	for _, sfed := range cru.SiafundElementDiffs() {
+	for _, sfed := range cru.BigfundElementDiffs() {
 		if sfed.Created && sfed.Spent {
 			continue // ephemeral
 		} else if sfed.Spent {
 			// output no longer spent; restore it
-			db.putSiafundElement(sfed.SiafundElement.Share())
+			db.putBigfundElement(sfed.BigfundElement.Share())
 		} else {
 			// output no longer exists; delete it
-			db.deleteSiafundElement(sfed.SiafundElement.ID)
+			db.deleteBigfundElement(sfed.BigfundElement.ID)
 		}
 	}
 	for _, biged := range cru.BigFileElementDiffs() {
@@ -765,9 +765,9 @@ func (db *DBStore) SupplementTipTransaction(txn types.Transaction) (ts consensus
 			ts.BigFileInputs = append(ts.BigFileInputs, bige.Move())
 		}
 	}
-	for _, sfi := range txn.SiafundInputs {
-		if sfe, ok := db.getSiafundElement(sfi.ParentID, numLeaves); ok {
-			ts.SiafundInputs = append(ts.SiafundInputs, sfe.Move())
+	for _, sfi := range txn.BigfundInputs {
+		if sfe, ok := db.getBigfundElement(sfi.ParentID, numLeaves); ok {
+			ts.BigfundInputs = append(ts.BigfundInputs, sfe.Move())
 		}
 	}
 	for _, fcr := range txn.FileContractRevisions {
@@ -951,7 +951,7 @@ func NewDBStore(db DB, n *consensus.Network, genesisBlock types.Block, logger Mi
 			bBlocks,
 			bFileContractElements,
 			bBigFileElements,
-			bSiafundElements,
+			bBigfundElements,
 			bTree,
 		} {
 			if _, err := db.CreateBucket(bucket); err != nil {

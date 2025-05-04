@@ -72,8 +72,8 @@ func migrateDB(dbs *DBStore, n *consensus.Network, l MigrationLogger) error {
 		for id := range dbs.db.Bucket(bBigFileElements).Iter() {
 			dbs.bucket(bBigFileElements).delete(id)
 		}
-		for id := range dbs.db.Bucket(bSiafundElements).Iter() {
-			dbs.bucket(bSiafundElements).delete(id)
+		for id := range dbs.db.Bucket(bBigfundElements).Iter() {
+			dbs.bucket(bBigfundElements).delete(id)
 		}
 		if dbs.shouldFlush() {
 			if err := dbs.Flush(); err != nil {

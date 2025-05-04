@@ -15,7 +15,7 @@ func parseAddr(s string) types.Address {
 	return addr
 }
 
-// Mainnet returns the network parameters and genesis block for the mainnet Sia
+// Mainnet returns the network parameters and genesis block for the mainnet Bigfile
 // blockchain.
 func Mainnet() (*consensus.Network, types.Block) {
 	n := &consensus.Network{
@@ -53,9 +53,9 @@ func Mainnet() (*consensus.Network, types.Block) {
 	b := types.Block{
 		Timestamp: n.HardforkOak.GenesisTimestamp,
 		Transactions: []types.Transaction{{
-			SiafundOutputs: []types.SiafundOutput{
+			BigfundOutputs: []types.BigfundOutput{
 				{Address: parseAddr("8320172b2ec599be4467e3999d0c8af57d30dde39ef5a61a66a86d809e7595f72a14834f5447"), Value: 10000},
-				},
+			},
 		}},
 	}
 
@@ -105,7 +105,7 @@ func TestnetZen() (*consensus.Network, types.Block) {
 				Address: parseAddr("8320172b2ec599be4467e3999d0c8af57d30dde39ef5a61a66a86d809e7595f72a14834f5447"),
 				Value:   types.BigFiles(1).Mul64(1e12),
 			}},
-			SiafundOutputs: []types.SiafundOutput{{
+			BigfundOutputs: []types.BigfundOutput{{
 				Address: parseAddr("8320172b2ec599be4467e3999d0c8af57d30dde39ef5a61a66a86d809e7595f72a14834f5447"),
 				Value:   10000,
 			}},
@@ -134,7 +134,7 @@ func TestnetAnagami() (*consensus.Network, types.Block) {
 		Address: parseAddr("8320172b2ec599be4467e3999d0c8af57d30dde39ef5a61a66a86d809e7595f72a14834f5447"),
 		Value:   types.BigFiles(1).Mul64(1e12),
 	}}
-	genesis.Transactions[0].SiafundOutputs = []types.SiafundOutput{{
+	genesis.Transactions[0].BigfundOutputs = []types.BigfundOutput{{
 		Address: parseAddr("8320172b2ec599be4467e3999d0c8af57d30dde39ef5a61a66a86d809e7595f72a14834f5447"),
 		Value:   10000,
 	}}
@@ -160,7 +160,7 @@ func TestnetErravimus() (*consensus.Network, types.Block) {
 		Address: parseAddr("8320172b2ec599be4467e3999d0c8af57d30dde39ef5a61a66a86d809e7595f72a14834f5447"),
 		Value:   types.BigFiles(1).Mul64(1e12),
 	}}
-	genesis.Transactions[0].SiafundOutputs = []types.SiafundOutput{{
+	genesis.Transactions[0].BigfundOutputs = []types.BigfundOutput{{
 		Address: parseAddr("8320172b2ec599be4467e3999d0c8af57d30dde39ef5a61a66a86d809e7595f72a14834f5447"),
 		Value:   10000,
 	}}
