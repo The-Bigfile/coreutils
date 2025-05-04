@@ -624,11 +624,11 @@ func (s *Server) handleRPCFormContract(stream net.Conn) error {
 
 	// calculate the renter inputs
 	var renterInputs types.Currency
-	for _, sce := range req.RenterInputs {
+	for _, bige := range req.RenterInputs {
 		formationTxn.BigFileInputs = append(formationTxn.BigFileInputs, types.V2BigFileInput{
-			Parent: sce.Move(),
+			Parent: bige.Move(),
 		})
-		renterInputs = renterInputs.Add(sce.BigFileOutput.Value)
+		renterInputs = renterInputs.Add(bige.BigFileOutput.Value)
 	}
 
 	// calculate the required funding
@@ -728,12 +728,11 @@ func (s *Server) handleRPCFormContract(stream net.Conn) error {
 	}, usage)
 	if err != nil {
 		return fmt.Errorf("failed to add contract: %w", err)
-		} else if err := s.syncer.BroadcastV2TransactionSet(basis, formationSet); err != nil {
-			return fmt.Errorf("failed to broadcast transaction set: %w", err)
+	} else if err := s.syncer.BroadcastV2TransactionSet(basis, formationSet); err != nil {
+		return fmt.Errorf("failed to broadcast transaction set: %w", err)
 	}
-	
-	broadcast = true // set broadcast so the UTXOs will not be released if the renter happens to disconnect before receiving the last response
 
+	broadcast = true // set broadcast so the UTXOs will not be released if the renter happens to disconnect before receiving the last response
 
 	// send the finalized transaction set to the renter
 	return rhp4.WriteResponse(stream, &rhp4.RPCFormContractThirdResponse{
@@ -773,7 +772,6 @@ func (s *Server) handleRPCRefreshContract(stream net.Conn) error {
 	if err := req.Validate(s.hostKey.PublicKey(), cs.Index, state.Revision, settings.MaxCollateral); err != nil {
 		return rhp4.NewRPCError(rhp4.ErrorCodeBadRequest, err.Error())
 	}
-
 
 	renewal, usage := rhp4.RefreshContract(existing, prices, req.Refresh)
 	renterCost, hostCost := rhp4.RefreshCost(cs, prices, renewal, req.MinerFee)
@@ -907,12 +905,11 @@ func (s *Server) handleRPCRefreshContract(stream net.Conn) error {
 	}, usage)
 	if err != nil {
 		return fmt.Errorf("failed to add contract: %w", err)
-		} else if err := s.syncer.BroadcastV2TransactionSet(basis, renewalSet); err != nil {
-			return fmt.Errorf("failed to broadcast transaction set: %w", err)
+	} else if err := s.syncer.BroadcastV2TransactionSet(basis, renewalSet); err != nil {
+		return fmt.Errorf("failed to broadcast transaction set: %w", err)
 	}
 
 	broadcast = true // set broadcast so the UTXOs will not be released if the renter happens to disconnect before receiving the last response
-
 
 	// send the finalized transaction set to the renter
 	return rhp4.WriteResponse(stream, &rhp4.RPCRefreshContractThirdResponse{
@@ -1087,12 +1084,11 @@ func (s *Server) handleRPCRenewContract(stream net.Conn) error {
 	}, usage)
 	if err != nil {
 		return fmt.Errorf("failed to add contract: %w", err)
-		} else if err := s.syncer.BroadcastV2TransactionSet(basis, renewalSet); err != nil {
-			return fmt.Errorf("failed to broadcast transaction set: %w", err)
+	} else if err := s.syncer.BroadcastV2TransactionSet(basis, renewalSet); err != nil {
+		return fmt.Errorf("failed to broadcast transaction set: %w", err)
 	}
 
 	broadcast = true // set broadcast so the UTXOs will not be released if the renter happens to disconnect before receiving the last response
-
 
 	// send the finalized transaction set to the renter
 	return rhp4.WriteResponse(stream, &rhp4.RPCRenewContractThirdResponse{

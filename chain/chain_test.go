@@ -41,14 +41,14 @@ func (ms *memState) Sync(t *testing.T, cm *chain.Manager) {
 			}
 
 			// revert utxos
-			for _, sced := range cru.BigFileElementDiffs() {
-				sce := &sced.BigFileElement
-				if sce.BigFileOutput.Address == types.AnyoneCanSpend().Address() {
-					if sced.Spent {
-						ms.utxos[sce.ID] = sce.Copy()
+			for _, biged := range cru.BigFileElementDiffs() {
+				bige := &biged.BigFileElement
+				if bige.BigFileOutput.Address == types.AnyoneCanSpend().Address() {
+					if biged.Spent {
+						ms.utxos[bige.ID] = bige.Copy()
 					}
-					if sced.Created {
-						delete(ms.utxos, sce.ID)
+					if biged.Created {
+						delete(ms.utxos, bige.ID)
 					}
 				}
 			}
@@ -70,14 +70,14 @@ func (ms *memState) Sync(t *testing.T, cm *chain.Manager) {
 			ms.chainIndexElements = append(ms.chainIndexElements, cau.ChainIndexElement())
 
 			// apply utxos
-			for _, sced := range cau.BigFileElementDiffs() {
-				sce := &sced.BigFileElement
-				if sce.BigFileOutput.Address == types.AnyoneCanSpend().Address() {
-					if sced.Created {
-						ms.utxos[sce.ID] = sce.Copy()
+			for _, biged := range cau.BigFileElementDiffs() {
+				bige := &biged.BigFileElement
+				if bige.BigFileOutput.Address == types.AnyoneCanSpend().Address() {
+					if biged.Created {
+						ms.utxos[bige.ID] = bige.Copy()
 					}
-					if sced.Spent {
-						delete(ms.utxos, sce.ID)
+					if biged.Spent {
+						delete(ms.utxos, bige.ID)
 					}
 				}
 			}
