@@ -1,4 +1,4 @@
-module go.thebigfile.com/coreutils // v0.0.10
+module go.thebigfile.com/coreutils // v1.0.1
 
 go 1.23.1
 
