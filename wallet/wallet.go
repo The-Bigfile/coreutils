@@ -887,8 +887,8 @@ func IsRelevantTransaction(txn types.Transaction, addr types.Address) bool {
 		}
 	}
 
-	for _, sfo := range txn.BigfundOutputs {
-		if sfo.Address == addr {
+	for _, bfo := range txn.BigfundOutputs {
+		if bfo.Address == addr {
 			return true
 		}
 	}

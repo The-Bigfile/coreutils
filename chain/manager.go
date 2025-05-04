@@ -661,8 +661,8 @@ func (m *Manager) computeParentMap() map[types.Hash256]int {
 		for i := range txn.BigFileOutputs {
 			m.txpool.parentMap[types.Hash256(txn.BigFileOutputID(txid, i))] = index
 		}
-		for _, sfi := range txn.BigfundInputs {
-			m.txpool.parentMap[types.Hash256(types.BigfundOutputID(sfi.Parent.ID).V2ClaimOutputID())] = index
+		for _, bfi := range txn.BigfundInputs {
+			m.txpool.parentMap[types.Hash256(types.BigfundOutputID(bfi.Parent.ID).V2ClaimOutputID())] = index
 		}
 		for i := range txn.BigfundOutputs {
 			m.txpool.parentMap[types.Hash256(txn.BigfundOutputID(txid, i))] = index
@@ -716,9 +716,9 @@ func (m *Manager) revertPoolUpdate(cru consensus.RevertUpdate, cs consensus.Stat
 					uncreated[types.Hash256(biged.BigFileElement.ID)] = true
 				}
 			}
-			for _, sfed := range cru.BigfundElementDiffs() {
-				if sfed.Created {
-					uncreated[types.Hash256(sfed.BigfundElement.ID)] = true
+			for _, bfed := range cru.BigfundElementDiffs() {
+				if bfed.Created {
+					uncreated[types.Hash256(bfed.BigfundElement.ID)] = true
 				}
 			}
 			for _, fced := range cru.FileContractElementDiffs() {
@@ -774,9 +774,9 @@ func (m *Manager) applyPoolUpdate(cau consensus.ApplyUpdate, cs consensus.State)
 					newElements[types.Hash256(biged.BigFileElement.ID)] = biged.BigFileElement.StateElement.Share()
 				}
 			}
-			for _, sfed := range cau.BigfundElementDiffs() {
-				if sfed.Created {
-					newElements[types.Hash256(sfed.BigfundElement.ID)] = sfed.BigfundElement.StateElement.Share()
+			for _, bfed := range cau.BigfundElementDiffs() {
+				if bfed.Created {
+					newElements[types.Hash256(bfed.BigfundElement.ID)] = bfed.BigfundElement.StateElement.Share()
 				}
 			}
 			for _, fced := range cau.FileContractElementDiffs() {
@@ -953,8 +953,8 @@ func (m *Manager) UnconfirmedParents(txn types.Transaction) []types.Transaction 
 		for _, bigi := range txn.BigFileInputs {
 			check(types.Hash256(bigi.ParentID))
 		}
-		for _, sfi := range txn.BigfundInputs {
-			check(types.Hash256(sfi.ParentID))
+		for _, bfi := range txn.BigfundInputs {
+			check(types.Hash256(bfi.ParentID))
 		}
 		for _, fcr := range txn.FileContractRevisions {
 			check(types.Hash256(fcr.ParentID))
@@ -1015,8 +1015,8 @@ func (m *Manager) V2TransactionSet(basis types.ChainIndex, txn types.V2Transacti
 		for _, bigi := range txn.BigFileInputs {
 			check(types.Hash256(bigi.Parent.ID))
 		}
-		for _, sfi := range txn.BigfundInputs {
-			check(types.Hash256(sfi.Parent.ID))
+		for _, bfi := range txn.BigfundInputs {
+			check(types.Hash256(bfi.Parent.ID))
 		}
 		for _, fcr := range txn.FileContractRevisions {
 			check(types.Hash256(fcr.Parent.ID))
@@ -1140,9 +1140,9 @@ func (m *Manager) updateV2TransactionProofs(txns []types.V2Transaction, from, to
 				confirmedStateElements[types.Hash256(biged.BigFileElement.ID)] = biged.BigFileElement.StateElement.Share()
 			}
 		}
-		for _, sfed := range cau.BigfundElementDiffs() {
-			if sfed.Created {
-				confirmedStateElements[types.Hash256(sfed.BigfundElement.ID)] = sfed.BigfundElement.StateElement.Share()
+		for _, bfed := range cau.BigfundElementDiffs() {
+			if bfed.Created {
+				confirmedStateElements[types.Hash256(bfed.BigfundElement.ID)] = bfed.BigfundElement.StateElement.Share()
 			}
 		}
 

@@ -562,17 +562,17 @@ func (db *DBStore) deleteBigFileElement(id types.BigFileOutputID) {
 	db.bucket(bBigFileElements).delete(id[:])
 }
 
-func (db *DBStore) getBigfundElement(id types.BigfundOutputID, numLeaves uint64) (sfe types.BigfundElement, ok bool) {
-	ok = db.bucket(bBigfundElements).get(id[:], &sfe)
+func (db *DBStore) getBigfundElement(id types.BigfundOutputID, numLeaves uint64) (bfe types.BigfundElement, ok bool) {
+	ok = db.bucket(bBigfundElements).get(id[:], &bfe)
 	if ok {
-		sfe.StateElement.MerkleProof = db.getElementProof(sfe.StateElement.LeafIndex, numLeaves)
+		bfe.StateElement.MerkleProof = db.getElementProof(bfe.StateElement.LeafIndex, numLeaves)
 	}
 	return
 }
 
-func (db *DBStore) putBigfundElement(sfe types.BigfundElement) {
-	sfe.StateElement.MerkleProof = nil
-	db.bucket(bBigfundElements).put(sfe.ID[:], sfe.Share())
+func (db *DBStore) putBigfundElement(bfe types.BigfundElement) {
+	bfe.StateElement.MerkleProof = nil
+	db.bucket(bBigfundElements).put(bfe.ID[:], bfe.Share())
 }
 
 func (db *DBStore) deleteBigfundElement(id types.BigfundOutputID) {
@@ -651,13 +651,13 @@ func (db *DBStore) applyElements(cau consensus.ApplyUpdate) {
 			db.putBigFileElement(biged.BigFileElement.Share())
 		}
 	}
-	for _, sfed := range cau.BigfundElementDiffs() {
-		if sfed.Created && sfed.Spent {
+	for _, bfed := range cau.BigfundElementDiffs() {
+		if bfed.Created && bfed.Spent {
 			continue // ephemeral
-		} else if sfed.Spent {
-			db.deleteBigfundElement(sfed.BigfundElement.ID)
+		} else if bfed.Spent {
+			db.deleteBigfundElement(bfed.BigfundElement.ID)
 		} else {
-			db.putBigfundElement(sfed.BigfundElement.Share())
+			db.putBigfundElement(bfed.BigfundElement.Share())
 		}
 	}
 	for _, fced := range cau.FileContractElementDiffs() {
@@ -707,15 +707,15 @@ func (db *DBStore) revertElements(cru consensus.RevertUpdate) {
 		}
 	}
 
-	for _, sfed := range cru.BigfundElementDiffs() {
-		if sfed.Created && sfed.Spent {
+	for _, bfed := range cru.BigfundElementDiffs() {
+		if bfed.Created && bfed.Spent {
 			continue // ephemeral
-		} else if sfed.Spent {
+		} else if bfed.Spent {
 			// output no longer spent; restore it
-			db.putBigfundElement(sfed.BigfundElement.Share())
+			db.putBigfundElement(bfed.BigfundElement.Share())
 		} else {
 			// output no longer exists; delete it
-			db.deleteBigfundElement(sfed.BigfundElement.ID)
+			db.deleteBigfundElement(bfed.BigfundElement.ID)
 		}
 	}
 	for _, biged := range cru.BigFileElementDiffs() {
@@ -765,9 +765,9 @@ func (db *DBStore) SupplementTipTransaction(txn types.Transaction) (ts consensus
 			ts.BigFileInputs = append(ts.BigFileInputs, bige.Move())
 		}
 	}
-	for _, sfi := range txn.BigfundInputs {
-		if sfe, ok := db.getBigfundElement(sfi.ParentID, numLeaves); ok {
-			ts.BigfundInputs = append(ts.BigfundInputs, sfe.Move())
+	for _, bfi := range txn.BigfundInputs {
+		if bfe, ok := db.getBigfundElement(bfi.ParentID, numLeaves); ok {
+			ts.BigfundInputs = append(ts.BigfundInputs, bfe.Move())
 		}
 	}
 	for _, fcr := range txn.FileContractRevisions {

@@ -13,7 +13,7 @@ type (
 	// update.
 	ChainUpdate interface {
 		ForEachBigFileElement(func(bige types.BigFileElement, spent bool))
-		ForEachBigfundElement(func(sfe types.BigfundElement, spent bool))
+		ForEachBigfundElement(func(bfe types.BigfundElement, spent bool))
 		ForEachFileContractElement(func(fce types.FileContractElement, rev *types.FileContractElement, resolved, valid bool))
 		ForEachV2FileContractElement(func(fce types.V2FileContractElement, rev *types.V2FileContractElement, res types.V2FileContractResolutionType))
 	}
