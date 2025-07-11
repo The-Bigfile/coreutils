@@ -3,9 +3,9 @@ package coreutils
 import (
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
 )
 
 // FindBlockNonce attempts to find a nonce for b that meets the PoW target.
@@ -38,7 +38,7 @@ retry:
 	b := types.Block{
 		ParentID:  cs.Index.ID,
 		Timestamp: types.CurrentTimestamp(),
-		MinerPayouts: []types.SiacoinOutput{{
+		MinerPayouts: []types.BigfileOutput{{
 			Value:   cs.BlockReward(),
 			Address: addr,
 		}},

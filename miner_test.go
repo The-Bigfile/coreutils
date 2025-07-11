@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils"
-	"go.sia.tech/coreutils/chain"
-	"go.sia.tech/coreutils/testutil"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils"
+	"go.thebigfile.com/coreutils/chain"
+	"go.thebigfile.com/coreutils/testutil"
 )
 
 func TestMiner(t *testing.T) {
@@ -15,10 +15,10 @@ func TestMiner(t *testing.T) {
 
 	sk := types.GeneratePrivateKey()
 	genesisBlock.Transactions = []types.Transaction{{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigfileOutputs: []types.BigfileOutput{
 			{
 				Address: types.StandardUnlockHash(sk.PublicKey()),
-				Value:   types.Siacoins(10),
+				Value:   types.Bigfiles(10),
 			},
 		},
 	}}
@@ -31,22 +31,22 @@ func TestMiner(t *testing.T) {
 
 	// create a transaction
 	txn := types.Transaction{
-		SiacoinInputs: []types.SiacoinInput{{
-			ParentID:         genesisBlock.Transactions[0].SiacoinOutputID(0),
+		BigfileInputs: []types.BigfileInput{{
+			ParentID:         genesisBlock.Transactions[0].BigfileOutputID(0),
 			UnlockConditions: types.StandardUnlockConditions(sk.PublicKey()),
 		}},
-		SiacoinOutputs: []types.SiacoinOutput{{
+		BigfileOutputs: []types.BigfileOutput{{
 			Address: types.StandardUnlockHash(sk.PublicKey()),
-			Value:   types.Siacoins(9),
+			Value:   types.Bigfiles(9),
 		}},
-		MinerFees: []types.Currency{types.Siacoins(1)},
+		MinerFees: []types.Currency{types.Bigfiles(1)},
 	}
 
 	// sign the inputs
-	for _, sci := range txn.SiacoinInputs {
-		sig := sk.SignHash(cm.TipState().WholeSigHash(txn, types.Hash256(sci.ParentID), 0, 0, nil))
+	for _, bigi := range txn.BigfileInputs {
+		sig := sk.SignHash(cm.TipState().WholeSigHash(txn, types.Hash256(bigi.ParentID), 0, 0, nil))
 		txn.Signatures = append(txn.Signatures, types.TransactionSignature{
-			ParentID:       types.Hash256(sci.ParentID),
+			ParentID:       types.Hash256(bigi.ParentID),
 			CoveredFields:  types.CoveredFields{WholeTransaction: true},
 			PublicKeyIndex: 0,
 			Signature:      sig[:],
@@ -60,7 +60,7 @@ func TestMiner(t *testing.T) {
 	}
 
 	// assert the minerpayout includes the txn fee
-	expectedPayout := types.Siacoins(1).Add(cm.TipState().BlockReward())
+	expectedPayout := types.Bigfiles(1).Add(cm.TipState().BlockReward())
 	b, found := coreutils.MineBlock(cm, types.VoidAddress, time.Second)
 	if !found {
 		t.Fatal("PoW failed")
@@ -78,10 +78,10 @@ func TestV2MineBlocks(t *testing.T) {
 	n.InitialTarget = types.BlockID{0xFF}
 
 	genesisBlock.Transactions = []types.Transaction{{
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigfileOutputs: []types.BigfileOutput{
 			{
 				Address: types.AnyoneCanSpend().Address(),
-				Value:   types.Siacoins(10),
+				Value:   types.Bigfiles(10),
 			},
 		},
 	}}
@@ -106,20 +106,20 @@ func TestV2MineBlocks(t *testing.T) {
 	// mine until just before the allow height
 	mineBlocks(t, 4)
 
-	elements := make(map[types.SiacoinOutputID]types.SiacoinElement)
+	elements := make(map[types.BigfileOutputID]types.BigfileElement)
 	_, applied, err := cm.UpdatesSince(types.ChainIndex{}, 500)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, cau := range applied {
-		for _, sced := range cau.SiacoinElementDiffs() {
-			sce := sced.SiacoinElement
-			if sce.SiacoinOutput.Address == types.AnyoneCanSpend().Address() {
-				if sced.Created {
-					elements[sce.ID] = sce
+		for _, biged := range cau.BigfileElementDiffs() {
+			bige := biged.BigfileElement
+			if bige.BigfileOutput.Address == types.AnyoneCanSpend().Address() {
+				if biged.Created {
+					elements[bige.ID] = bige
 				}
-				if sced.Spent {
-					delete(elements, sce.ID)
+				if biged.Spent {
+					delete(elements, bige.ID)
 				}
 			}
 		}
@@ -129,15 +129,15 @@ func TestV2MineBlocks(t *testing.T) {
 		}
 	}
 
-	var se types.SiacoinElement
+	var se types.BigfileElement
 	for _, v := range elements {
 		se = v
 		break
 	}
 
 	txn := types.V2Transaction{
-		MinerFee: se.SiacoinOutput.Value,
-		SiacoinInputs: []types.V2SiacoinInput{{
+		MinerFee: se.BigfileOutput.Value,
+		BigfileInputs: []types.V2BigfileInput{{
 			Parent:          se,
 			SatisfiedPolicy: types.SatisfiedPolicy{Policy: types.AnyoneCanSpend()},
 		}},

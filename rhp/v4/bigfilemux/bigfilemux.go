@@ -1,4 +1,4 @@
-package siamux
+package bigfilemux
 
 import (
 	"context"
@@ -8,10 +8,10 @@ import (
 	"net"
 	"time"
 
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
-	rhp4 "go.sia.tech/coreutils/rhp/v4"
-	"go.sia.tech/mux"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
+	rhp4 "go.thebigfile.com/coreutils/rhp/v4"
+	"go.thebigfile.com/mux"
 	"go.uber.org/zap"
 )
 
@@ -21,14 +21,14 @@ const (
 	// a context to the Dial func.
 	defaultDialTimeout = time.Minute
 	// defaultMuxHandshakeTimeout is the default timeout applied when upgrading a
-	// connection to a siamux connection
+	// connection to a bigfilemux connection
 	defaultMuxHandshakeTimeout = 10 * time.Second
 
-	// Protocol is the identifier for the SiaMux transport protocol.
-	Protocol chain.Protocol = "siamux"
+	// Protocol is the identifier for the BigfileMux transport protocol.
+	Protocol chain.Protocol = "bigfilemux"
 )
 
-// client is a TransportClient that uses the SiaMux multiplexer.
+// client is a TransportClient that uses the BigfileMux multiplexer.
 type client struct {
 	m       *mux.Mux
 	peerKey types.PublicKey
@@ -46,7 +46,7 @@ func (c *client) Close() error {
 }
 
 func (c *client) FrameSize() int {
-	return 1440 * 3 // from SiaMux handshake.go
+	return 1440 * 3 // from BigfileMux handshake.go
 }
 
 func (c *client) PeerKey() types.PublicKey {
@@ -59,7 +59,7 @@ func (c *client) DialStream() (net.Conn, error) {
 	return s, nil
 }
 
-// Dial creates a new TransportClient using the SiaMux transport.
+// Dial creates a new TransportClient using the BigfileMux transport.
 func Dial(ctx context.Context, addr string, peerKey types.PublicKey) (rhp4.TransportClient, error) {
 	deadline, ok := ctx.Deadline()
 	if !ok || deadline.IsZero() {
@@ -75,7 +75,7 @@ func Dial(ctx context.Context, addr string, peerKey types.PublicKey) (rhp4.Trans
 	return Upgrade(ctx, conn, peerKey)
 }
 
-// Upgrade upgrades an existing connection to use the SiaMux transport.
+// Upgrade upgrades an existing connection to use the BigfileMux transport.
 func Upgrade(ctx context.Context, conn net.Conn, peerKey types.PublicKey) (rhp4.TransportClient, error) {
 	done := make(chan struct{})
 	defer close(done)
@@ -95,7 +95,7 @@ func Upgrade(ctx context.Context, conn net.Conn, peerKey types.PublicKey) (rhp4.
 	}
 	m, err := mux.Dial(conn, peerKey[:])
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish siamux connection: %w", err)
+		return nil, fmt.Errorf("failed to establish bigfilemux connection: %w", err)
 	}
 	if err := conn.SetDeadline(time.Time{}); err != nil {
 		return nil, fmt.Errorf("failed to clear deadline: %w", err)
@@ -122,7 +122,7 @@ func (t *transport) AcceptStream() (net.Conn, error) {
 	return t.m.AcceptStream()
 }
 
-// Serve serves RHP4 connections on the listener l using the SiaMux transport.
+// Serve serves RHP4 connections on the listener l using the BigfileMux transport.
 func Serve(l net.Listener, s *rhp4.Server, log *zap.Logger) {
 	for {
 		conn, err := l.Accept()

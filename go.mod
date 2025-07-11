@@ -1,4 +1,4 @@
-module go.sia.tech/coreutils // v0.16.5
+module go.thebigfile.com/coreutils // v1.0.2
 
 go 1.23.1
 
@@ -8,8 +8,8 @@ require (
 	github.com/quic-go/quic-go v0.53.0
 	github.com/quic-go/webtransport-go v0.9.0
 	go.etcd.io/bbolt v1.4.2
-	go.sia.tech/core v0.14.2-0.20250706040935-47853697eeaa
-	go.sia.tech/mux v1.4.0
+	go.thebigfile.com/core v1.0.9
+	go.thebigfile.com/mux v0.0.4
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.40.0
 	golang.org/x/net v0.41.0

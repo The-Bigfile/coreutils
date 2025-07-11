@@ -16,10 +16,10 @@ github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOf
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 go.etcd.io/bbolt v1.4.2 h1:IrUHp260R8c+zYx/Tm8QZr04CX+qWS5PGfPdevhdm1I=
 go.etcd.io/bbolt v1.4.2/go.mod h1:Is8rSHO/b4f3XigBC0lL0+4FwAQv3HXEEIgFMuKHceM=
-go.sia.tech/core v0.14.2-0.20250706040935-47853697eeaa h1:QAPorn2AzaJeAs5qvC+Aq0wjcApLSYIKXjQPIdFZv1s=
-go.sia.tech/core v0.14.2-0.20250706040935-47853697eeaa/go.mod h1:Uhrw7JKxtDCr5ZW2homCKrRPKTgZBy9t35vfBWWFMxc=
-go.sia.tech/mux v1.4.0 h1:LgsLHtn7l+25MwrgaPaUCaS8f2W2/tfvHIdXps04sVo=
-go.sia.tech/mux v1.4.0/go.mod h1:iNFi9ifFb2XhuD+LF4t2HBb4Mvgq/zIPKqwXU/NlqHA=
+go.thebigfile.com/core v1.0.9 h1:cKye5oMvJ5qDEmXPpKJh96fLvYxvyAJOxIBMy9Jxvqs=
+go.thebigfile.com/core v1.0.9/go.mod h1:2J8gJ9XJwqkWIrkYgMW6q7QChjtMQSmZFpmYLxXd/w0=
+go.thebigfile.com/mux v0.0.4 h1:ARLEMKCJ7GrP5RgUj9VRo2Yh08mVOIB45J6aQvWJDok=
+go.thebigfile.com/mux v0.0.4/go.mod h1:e97g4RnwZD9WgzzO+7opXosprw9VYPMul2KrGlQjfEQ=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/mock v0.5.2 h1:LbtPTcP8A5k9WPXj54PPPbjcI4Y6lhyOZXn+VS7wNko=

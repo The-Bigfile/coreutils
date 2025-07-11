@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/types"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/types"
 	"lukechampine.com/frand"
 )
 
@@ -46,7 +46,7 @@ func TestManager(t *testing.T) {
 			b := types.Block{
 				ParentID:  cs.Index.ID,
 				Timestamp: types.CurrentTimestamp(),
-				MinerPayouts: []types.SiacoinOutput{{
+				MinerPayouts: []types.BigfileOutput{{
 					Value:   cs.BlockReward(),
 					Address: types.Address(frand.Entropy256()),
 				}},
@@ -121,10 +121,10 @@ func TestTxPool(t *testing.T) {
 	giftPrivateKey := types.GeneratePrivateKey()
 	giftPublicKey := giftPrivateKey.PublicKey()
 	giftAddress := types.StandardUnlockHash(giftPublicKey)
-	giftAmountSC := types.Siacoins(100)
+	giftAmountBIG := types.Bigfiles(100)
 	giftTxn := types.Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
-			{Address: giftAddress, Value: giftAmountSC},
+		BigfileOutputs: []types.BigfileOutput{
+			{Address: giftAddress, Value: giftAmountBIG},
 		},
 	}
 	genesisBlock.Transactions = []types.Transaction{giftTxn}
@@ -146,10 +146,10 @@ func TestTxPool(t *testing.T) {
 	})
 
 	signTxn := func(txn *types.Transaction) {
-		for _, sci := range txn.SiacoinInputs {
-			sig := giftPrivateKey.SignHash(cm.TipState().WholeSigHash(*txn, types.Hash256(sci.ParentID), 0, 0, nil))
+		for _, bigi := range txn.BigfileInputs {
+			sig := giftPrivateKey.SignHash(cm.TipState().WholeSigHash(*txn, types.Hash256(bigi.ParentID), 0, 0, nil))
 			txn.Signatures = append(txn.Signatures, types.TransactionSignature{
-				ParentID:       types.Hash256(sci.ParentID),
+				ParentID:       types.Hash256(bigi.ParentID),
 				CoveredFields:  types.CoveredFields{WholeTransaction: true},
 				PublicKeyIndex: 0,
 				Signature:      sig[:],
@@ -159,13 +159,13 @@ func TestTxPool(t *testing.T) {
 
 	// add a transaction to the pool
 	parentTxn := types.Transaction{
-		SiacoinInputs: []types.SiacoinInput{{
-			ParentID:         giftTxn.SiacoinOutputID(0),
+		BigfileInputs: []types.BigfileInput{{
+			ParentID:         giftTxn.BigfileOutputID(0),
 			UnlockConditions: types.StandardUnlockConditions(giftPublicKey),
 		}},
-		SiacoinOutputs: []types.SiacoinOutput{{
+		BigfileOutputs: []types.BigfileOutput{{
 			Address: giftAddress,
-			Value:   giftAmountSC,
+			Value:   giftAmountBIG,
 		}},
 	}
 	signTxn(&parentTxn)
@@ -179,11 +179,11 @@ func TestTxPool(t *testing.T) {
 
 	// add another transaction, dependent on the first
 	childTxn := types.Transaction{
-		SiacoinInputs: []types.SiacoinInput{{
-			ParentID:         parentTxn.SiacoinOutputID(0),
+		BigfileInputs: []types.BigfileInput{{
+			ParentID:         parentTxn.BigfileOutputID(0),
 			UnlockConditions: types.StandardUnlockConditions(giftPublicKey),
 		}},
-		MinerFees: []types.Currency{giftAmountSC},
+		MinerFees: []types.Currency{giftAmountBIG},
 	}
 	signTxn(&childTxn)
 	// submitted alone, it should be rejected
@@ -213,8 +213,8 @@ func TestTxPool(t *testing.T) {
 	b := types.Block{
 		ParentID:  cm.TipState().Index.ID,
 		Timestamp: types.CurrentTimestamp(),
-		MinerPayouts: []types.SiacoinOutput{{
-			Value:   cm.TipState().BlockReward().Add(giftAmountSC),
+		MinerPayouts: []types.BigfileOutput{{
+			Value:   cm.TipState().BlockReward().Add(giftAmountBIG),
 			Address: types.Address(frand.Entropy256()),
 		}},
 		Transactions: cm.PoolTransactions(),
@@ -241,10 +241,10 @@ func TestUpdateV2TransactionSet(t *testing.T) {
 	giftPrivateKey := types.GeneratePrivateKey()
 	giftPublicKey := giftPrivateKey.PublicKey()
 	giftAddress := types.StandardAddress(giftPublicKey)
-	giftAmountSC := types.Siacoins(100)
+	giftAmountBIG := types.Bigfiles(100)
 	giftTxn := types.Transaction{
-		SiacoinOutputs: []types.SiacoinOutput{
-			{Address: giftAddress, Value: giftAmountSC},
+		BigfileOutputs: []types.BigfileOutput{
+			{Address: giftAddress, Value: giftAmountBIG},
 		},
 	}
 	genesisBlock.Transactions = []types.Transaction{giftTxn}
@@ -253,16 +253,16 @@ func TestUpdateV2TransactionSet(t *testing.T) {
 	bs := consensus.V1BlockSupplement{Transactions: make([]consensus.V1TransactionSupplement, 1)}
 	cs, cau := consensus.ApplyBlock(n.GenesisState(), genesisBlock, bs, time.Time{})
 	txn := types.V2Transaction{
-		SiacoinInputs: []types.V2SiacoinInput{{
-			Parent: cau.SiacoinElementDiffs()[0].SiacoinElement.Copy(),
+		BigfileInputs: []types.V2BigfileInput{{
+			Parent: cau.BigfileElementDiffs()[0].BigfileElement.Copy(),
 			SatisfiedPolicy: types.SatisfiedPolicy{
 				Policy:     types.PolicyPublicKey(giftPublicKey),
 				Signatures: []types.Signature{},
 			},
 		}},
-		MinerFee: giftAmountSC,
+		MinerFee: giftAmountBIG,
 	}
-	txn.SiacoinInputs[0].SatisfiedPolicy.Signatures = []types.Signature{giftPrivateKey.SignHash(cs.InputSigHash(txn))}
+	txn.BigfileInputs[0].SatisfiedPolicy.Signatures = []types.Signature{giftPrivateKey.SignHash(cs.InputSigHash(txn))}
 
 	ms := consensus.NewMidState(cs)
 	if err := consensus.ValidateV2Transaction(ms, txn); err != nil {
@@ -280,7 +280,7 @@ func TestUpdateV2TransactionSet(t *testing.T) {
 		b := types.Block{
 			ParentID:  cs.Index.ID,
 			Timestamp: types.CurrentTimestamp(),
-			MinerPayouts: []types.SiacoinOutput{{
+			MinerPayouts: []types.BigfileOutput{{
 				Value:   cs.BlockReward(),
 				Address: frand.Entropy256(),
 			}},
@@ -326,11 +326,11 @@ func TestFullTxPool(t *testing.T) {
 	giftPublicKey := giftPrivateKey.PublicKey()
 	giftAddress := types.StandardUnlockHash(giftPublicKey)
 	giftTxn := types.Transaction{
-		SiacoinOutputs: make([]types.SiacoinOutput, 99),
+		BigfileOutputs: make([]types.BigfileOutput, 99),
 	}
-	for i := range giftTxn.SiacoinOutputs {
-		giftTxn.SiacoinOutputs[i].Address = giftAddress
-		giftTxn.SiacoinOutputs[i].Value = types.Siacoins(100)
+	for i := range giftTxn.BigfileOutputs {
+		giftTxn.BigfileOutputs[i].Address = giftAddress
+		giftTxn.BigfileOutputs[i].Value = types.Bigfiles(100)
 	}
 	genesisBlock.Transactions = []types.Transaction{giftTxn}
 
@@ -341,10 +341,10 @@ func TestFullTxPool(t *testing.T) {
 	cm := NewManager(store, tipState)
 
 	signTxn := func(txn *types.Transaction) {
-		for _, sci := range txn.SiacoinInputs {
-			sig := giftPrivateKey.SignHash(cm.TipState().WholeSigHash(*txn, types.Hash256(sci.ParentID), 0, 0, nil))
+		for _, bigi := range txn.BigfileInputs {
+			sig := giftPrivateKey.SignHash(cm.TipState().WholeSigHash(*txn, types.Hash256(bigi.ParentID), 0, 0, nil))
 			txn.Signatures = append(txn.Signatures, types.TransactionSignature{
-				ParentID:       types.Hash256(sci.ParentID),
+				ParentID:       types.Hash256(bigi.ParentID),
 				CoveredFields:  types.CoveredFields{WholeTransaction: true},
 				PublicKeyIndex: 0,
 				Signature:      sig[:],
@@ -354,17 +354,17 @@ func TestFullTxPool(t *testing.T) {
 
 	// add transactions (with decreasing fees) to the pool
 	var ids []types.TransactionID
-	for i := range giftTxn.SiacoinOutputs {
+	for i := range giftTxn.BigfileOutputs {
 		txn := types.Transaction{
-			SiacoinInputs: []types.SiacoinInput{{
-				ParentID:         giftTxn.SiacoinOutputID(i),
+			BigfileInputs: []types.BigfileInput{{
+				ParentID:         giftTxn.BigfileOutputID(i),
 				UnlockConditions: types.StandardUnlockConditions(giftPublicKey),
 			}},
-			SiacoinOutputs: []types.SiacoinOutput{{
+			BigfileOutputs: []types.BigfileOutput{{
 				Address: types.VoidAddress,
-				Value:   types.Siacoins(uint32(i + 1)), // can't create zero-valued outputs
+				Value:   types.Bigfiles(uint32(i + 1)), // can't create zero-valued outputs
 			}},
-			MinerFees:     []types.Currency{types.Siacoins(uint32(100 - (i + 1)))},
+			MinerFees:     []types.Currency{types.Bigfiles(uint32(100 - (i + 1)))},
 			ArbitraryData: [][]byte{make([]byte, 500e3)},
 		}
 		signTxn(&txn)

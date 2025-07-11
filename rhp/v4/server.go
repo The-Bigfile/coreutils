@@ -9,10 +9,10 @@ import (
 	"net"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	rhp4 "go.sia.tech/core/rhp/v4"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/wallet"
+	"go.thebigfile.com/core/consensus"
+	rhp4 "go.thebigfile.com/core/rhp/v4"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/wallet"
 	"go.uber.org/zap"
 	"lukechampine.com/frand"
 )
@@ -53,13 +53,13 @@ type (
 		UpdateV2TransactionSet(txns []types.V2Transaction, from, to types.ChainIndex) ([]types.V2Transaction, error)
 	}
 
-	// A Wallet manages Siacoins and funds transactions.
+	// A Wallet manages Bigfiles and funds transactions.
 	Wallet interface {
 		// Address returns the host's address
 		Address() types.Address
 
 		// FundV2Transaction funds a transaction with the specified amount of
-		// Siacoins. If useUnconfirmed is true, the transaction may spend
+		// Bigfiles. If useUnconfirmed is true, the transaction may spend
 		// unconfirmed outputs. The outputs spent by the transaction are locked
 		// until they are released by ReleaseInputs.
 		FundV2Transaction(txn *types.V2Transaction, amount types.Currency, useUnconfirmed bool) (types.ChainIndex, []int, error)
@@ -622,11 +622,11 @@ func (s *Server) handleRPCFormContract(stream net.Conn) error {
 
 	// calculate the renter inputs
 	var renterInputs types.Currency
-	for _, sce := range req.RenterInputs {
-		formationTxn.SiacoinInputs = append(formationTxn.SiacoinInputs, types.V2SiacoinInput{
-			Parent: sce.Move(),
+	for _, bige := range req.RenterInputs {
+		formationTxn.BigfileInputs = append(formationTxn.BigfileInputs, types.V2BigfileInput{
+			Parent: bige.Move(),
 		})
-		renterInputs = renterInputs.Add(sce.SiacoinOutput.Value)
+		renterInputs = renterInputs.Add(bige.BigfileOutput.Value)
 	}
 
 	// calculate the required funding
@@ -637,7 +637,7 @@ func (s *Server) handleRPCFormContract(stream net.Conn) error {
 		return errorBadRequest("renter funding %v is less than required funding %v", renterInputs, renterCost)
 	} else if !renterInputs.Equals(renterCost) {
 		// if the renter added too much, add a change output
-		formationTxn.SiacoinOutputs = append(formationTxn.SiacoinOutputs, types.SiacoinOutput{
+		formationTxn.BigfileOutputs = append(formationTxn.BigfileOutputs, types.BigfileOutput{
 			Address: req.Contract.RenterAddress,
 			Value:   renterInputs.Sub(renterCost),
 		})
@@ -662,7 +662,7 @@ func (s *Server) handleRPCFormContract(stream net.Conn) error {
 	s.wallet.SignV2Inputs(&formationTxn, toSign)
 	// send the host inputs to the renter
 	hostInputsResp := rhp4.RPCFormContractResponse{
-		HostInputs: formationTxn.SiacoinInputs[len(req.RenterInputs):],
+		HostInputs: formationTxn.BigfileInputs[len(req.RenterInputs):],
 	}
 	if err := rhp4.WriteResponse(stream, &hostInputsResp); err != nil {
 		return fmt.Errorf("failed to send host inputs: %w", err)
@@ -670,14 +670,14 @@ func (s *Server) handleRPCFormContract(stream net.Conn) error {
 
 	// update renter input basis to reflect our funding basis
 	if basis != req.Basis {
-		hostInputs := formationTxn.SiacoinInputs[len(req.RenterInputs):]
-		formationTxn.SiacoinInputs = formationTxn.SiacoinInputs[:len(req.RenterInputs)]
+		hostInputs := formationTxn.BigfileInputs[len(req.RenterInputs):]
+		formationTxn.BigfileInputs = formationTxn.BigfileInputs[:len(req.RenterInputs)]
 		txnset, err := s.chain.UpdateV2TransactionSet([]types.V2Transaction{formationTxn}, req.Basis, basis)
 		if err != nil {
 			return errorBadRequest("failed to update renter inputs from %q to %q: %v", req.Basis, basis, err)
 		}
 		formationTxn = txnset[0]
-		formationTxn.SiacoinInputs = append(formationTxn.SiacoinInputs, hostInputs...)
+		formationTxn.BigfileInputs = append(formationTxn.BigfileInputs, hostInputs...)
 	}
 
 	// read the renter's signatures
@@ -697,7 +697,7 @@ func (s *Server) handleRPCFormContract(stream net.Conn) error {
 
 	// add the renter signatures to the transaction
 	for i, policy := range renterSigResp.RenterSatisfiedPolicies {
-		formationTxn.SiacoinInputs[i].SatisfiedPolicy = policy
+		formationTxn.BigfileInputs[i].SatisfiedPolicy = policy
 	}
 
 	// add our signature to the contract
@@ -779,17 +779,17 @@ func (s *Server) handleRPCRefreshContract(stream net.Conn) error {
 	// add the renter inputs
 	var renterInputSum types.Currency
 	for _, si := range req.RenterInputs {
-		renewalTxn.SiacoinInputs = append(renewalTxn.SiacoinInputs, types.V2SiacoinInput{
+		renewalTxn.BigfileInputs = append(renewalTxn.BigfileInputs, types.V2BigfileInput{
 			Parent: si.Move(),
 		})
-		renterInputSum = renterInputSum.Add(si.SiacoinOutput.Value)
+		renterInputSum = renterInputSum.Add(si.BigfileOutput.Value)
 	}
 
 	if n := renterInputSum.Cmp(renterCost); n < 0 {
 		return errorBadRequest("expected renter to fund %v, got %v", renterInputSum, renterCost)
 	} else if n > 0 {
 		// if the renter added too much, add a change output
-		renewalTxn.SiacoinOutputs = append(renewalTxn.SiacoinOutputs, types.SiacoinOutput{
+		renewalTxn.BigfileOutputs = append(renewalTxn.BigfileOutputs, types.BigfileOutput{
 			Address: renewal.NewContract.RenterOutput.Address,
 			Value:   renterInputSum.Sub(renterCost),
 		})
@@ -817,14 +817,14 @@ func (s *Server) handleRPCRefreshContract(stream net.Conn) error {
 
 	// update renter inputs to reflect our chain state
 	if basis != req.Basis {
-		hostInputs := renewalTxn.SiacoinInputs[len(req.RenterInputs):]
-		renewalTxn.SiacoinInputs = renewalTxn.SiacoinInputs[:len(req.RenterInputs)]
+		hostInputs := renewalTxn.BigfileInputs[len(req.RenterInputs):]
+		renewalTxn.BigfileInputs = renewalTxn.BigfileInputs[:len(req.RenterInputs)]
 		updated, err := s.chain.UpdateV2TransactionSet([]types.V2Transaction{renewalTxn}, req.Basis, basis)
 		if err != nil {
 			return errorBadRequest("failed to update renter inputs from %q to %q: %v", req.Basis, basis, err)
 		}
 		renewalTxn = updated[0]
-		renewalTxn.SiacoinInputs = append(renewalTxn.SiacoinInputs, hostInputs...)
+		renewalTxn.BigfileInputs = append(renewalTxn.BigfileInputs, hostInputs...)
 	}
 
 	if elementBasis != basis {
@@ -845,7 +845,7 @@ func (s *Server) handleRPCRefreshContract(stream net.Conn) error {
 	s.wallet.SignV2Inputs(&renewalTxn, toSign)
 	// send the host inputs to the renter
 	hostInputsResp := rhp4.RPCRefreshContractResponse{
-		HostInputs: renewalTxn.SiacoinInputs[len(req.RenterInputs):],
+		HostInputs: renewalTxn.BigfileInputs[len(req.RenterInputs):],
 	}
 	if err := rhp4.WriteResponse(stream, &hostInputsResp); err != nil {
 		return fmt.Errorf("failed to send host inputs: %w", err)
@@ -876,7 +876,7 @@ func (s *Server) handleRPCRefreshContract(stream net.Conn) error {
 
 	// apply the renter's signatures
 	for i, policy := range renterSigResp.RenterSatisfiedPolicies {
-		renewalTxn.SiacoinInputs[i].SatisfiedPolicy = policy
+		renewalTxn.BigfileInputs[i].SatisfiedPolicy = policy
 	}
 
 	// add the renter's parents to our transaction pool to ensure they are valid
@@ -957,17 +957,17 @@ func (s *Server) handleRPCRenewContract(stream net.Conn) error {
 	// add the renter inputs
 	var renterInputSum types.Currency
 	for _, si := range req.RenterInputs {
-		renewalTxn.SiacoinInputs = append(renewalTxn.SiacoinInputs, types.V2SiacoinInput{
+		renewalTxn.BigfileInputs = append(renewalTxn.BigfileInputs, types.V2BigfileInput{
 			Parent: si.Move(),
 		})
-		renterInputSum = renterInputSum.Add(si.SiacoinOutput.Value)
+		renterInputSum = renterInputSum.Add(si.BigfileOutput.Value)
 	}
 
 	if n := renterInputSum.Cmp(renterCost); n < 0 {
 		return errorBadRequest("expected renter to fund %v, got %v", renterInputSum, renterCost)
 	} else if n > 0 {
 		// if the renter added too much, add a change output
-		renewalTxn.SiacoinOutputs = append(renewalTxn.SiacoinOutputs, types.SiacoinOutput{
+		renewalTxn.BigfileOutputs = append(renewalTxn.BigfileOutputs, types.BigfileOutput{
 			Address: renewal.NewContract.RenterOutput.Address,
 			Value:   renterInputSum.Sub(renterCost),
 		})
@@ -995,14 +995,14 @@ func (s *Server) handleRPCRenewContract(stream net.Conn) error {
 
 	// update renter inputs to reflect our chain state
 	if basis != req.Basis {
-		hostInputs := renewalTxn.SiacoinInputs[len(req.RenterInputs):]
-		renewalTxn.SiacoinInputs = renewalTxn.SiacoinInputs[:len(req.RenterInputs)]
+		hostInputs := renewalTxn.BigfileInputs[len(req.RenterInputs):]
+		renewalTxn.BigfileInputs = renewalTxn.BigfileInputs[:len(req.RenterInputs)]
 		updated, err := s.chain.UpdateV2TransactionSet([]types.V2Transaction{renewalTxn}, req.Basis, basis)
 		if err != nil {
 			return errorBadRequest("failed to update renter inputs from %q to %q: %v", req.Basis, basis, err)
 		}
 		renewalTxn = updated[0]
-		renewalTxn.SiacoinInputs = append(renewalTxn.SiacoinInputs, hostInputs...)
+		renewalTxn.BigfileInputs = append(renewalTxn.BigfileInputs, hostInputs...)
 	}
 
 	if elementBasis != basis {
@@ -1023,7 +1023,7 @@ func (s *Server) handleRPCRenewContract(stream net.Conn) error {
 	s.wallet.SignV2Inputs(&renewalTxn, toSign)
 	// send the host inputs to the renter
 	hostInputsResp := rhp4.RPCRenewContractResponse{
-		HostInputs: renewalTxn.SiacoinInputs[len(req.RenterInputs):],
+		HostInputs: renewalTxn.BigfileInputs[len(req.RenterInputs):],
 	}
 	if err := rhp4.WriteResponse(stream, &hostInputsResp); err != nil {
 		return fmt.Errorf("failed to send host inputs: %w", err)
@@ -1054,7 +1054,7 @@ func (s *Server) handleRPCRenewContract(stream net.Conn) error {
 
 	// apply the renter's signatures
 	for i, policy := range renterSigResp.RenterSatisfiedPolicies {
-		renewalTxn.SiacoinInputs[i].SatisfiedPolicy = policy
+		renewalTxn.BigfileInputs[i].SatisfiedPolicy = policy
 	}
 
 	// add the renter's parents to our transaction pool to ensure they are valid

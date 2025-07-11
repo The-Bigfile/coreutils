@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
-	"go.sia.tech/coreutils/testutil"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
+	"go.thebigfile.com/coreutils/testutil"
 )
 
 func TestAddV2PoolTransactionsRecover(t *testing.T) {
@@ -28,50 +28,50 @@ func TestAddV2PoolTransactionsRecover(t *testing.T) {
 	es.Wait(t)
 
 	cs := cm.TipState()
-	basis, sces := es.SiacoinElements()
+	basis, biges := es.BigfileElements()
 
 	// pick the earliest element to use for the corrupt transaction
 	i := -1
-	var selected types.SiacoinElement
-	for j, sce := range sces {
-		if sce.SiacoinOutput.Address != addr || sce.MaturityHeight > cs.Index.Height {
+	var selected types.BigfileElement
+	for j, bige := range biges {
+		if bige.BigfileOutput.Address != addr || bige.MaturityHeight > cs.Index.Height {
 			continue
 		}
-		if i == -1 || sce.StateElement.LeafIndex < selected.StateElement.LeafIndex {
+		if i == -1 || bige.StateElement.LeafIndex < selected.StateElement.LeafIndex {
 			i = j
-			selected = sce
+			selected = bige
 		}
 	}
 	if i == -1 {
-		t.Fatal("no valid SiacoinElement found")
+		t.Fatal("no valid BigfileElement found")
 	}
-	sces = slices.Delete(sces, i, i)
+	biges = slices.Delete(biges, i, i)
 
 	// spend all the other utxos to create a large tree diff
-	for _, sce := range sces {
-		if sce.SiacoinOutput.Address != addr || sce.MaturityHeight > cs.Index.Height {
+	for _, bige := range biges {
+		if bige.BigfileOutput.Address != addr || bige.MaturityHeight > cs.Index.Height {
 			continue
 		}
 
 		txn := types.V2Transaction{
-			SiacoinInputs: []types.V2SiacoinInput{
+			BigfileInputs: []types.V2BigfileInput{
 				{
-					Parent: sce,
+					Parent: bige,
 					SatisfiedPolicy: types.SatisfiedPolicy{
 						Policy: sp,
 					},
 				},
 			},
-			MinerFee: types.Siacoins(1),
-			SiacoinOutputs: []types.SiacoinOutput{
+			MinerFee: types.Bigfiles(1),
+			BigfileOutputs: []types.BigfileOutput{
 				{
 					Address: addr,
-					Value:   sce.SiacoinOutput.Value.Sub(types.Siacoins(1)),
+					Value:   bige.BigfileOutput.Value.Sub(types.Bigfiles(1)),
 				},
 			},
 		}
 		sigHash := cs.InputSigHash(txn)
-		txn.SiacoinInputs[0].SatisfiedPolicy.Signatures = []types.Signature{sk.SignHash(sigHash)}
+		txn.BigfileInputs[0].SatisfiedPolicy.Signatures = []types.Signature{sk.SignHash(sigHash)}
 
 		if _, err := cm.AddV2PoolTransactions(basis, []types.V2Transaction{txn}); err != nil {
 			t.Fatal(err)
@@ -81,7 +81,7 @@ func TestAddV2PoolTransactionsRecover(t *testing.T) {
 	// create a transaction with the selected element but corrupt its proof
 	selected.StateElement.MerkleProof = selected.StateElement.MerkleProof[1:]
 	txn := types.V2Transaction{
-		SiacoinInputs: []types.V2SiacoinInput{
+		BigfileInputs: []types.V2BigfileInput{
 			{
 				Parent: selected,
 				SatisfiedPolicy: types.SatisfiedPolicy{
@@ -89,15 +89,15 @@ func TestAddV2PoolTransactionsRecover(t *testing.T) {
 				},
 			},
 		},
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigfileOutputs: []types.BigfileOutput{
 			{
 				Address: types.VoidAddress,
-				Value:   selected.SiacoinOutput.Value,
+				Value:   selected.BigfileOutput.Value,
 			},
 		},
 	}
 	sigHash := cs.InputSigHash(txn)
-	txn.SiacoinInputs[0].SatisfiedPolicy.Signatures = []types.Signature{sk.SignHash(sigHash)}
+	txn.BigfileInputs[0].SatisfiedPolicy.Signatures = []types.Signature{sk.SignHash(sigHash)}
 
 	// mine blocks to require an update
 	testutil.MineBlocks(t, cm, addr, 20)

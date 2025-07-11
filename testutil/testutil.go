@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils"
-	"go.sia.tech/coreutils/chain"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils"
+	"go.thebigfile.com/coreutils/chain"
 )
 
 type (

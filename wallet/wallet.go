@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/threadgroup"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/threadgroup"
 	"go.uber.org/zap"
 )
 
 const (
-	// bytesPerInput is the encoded size of a SiacoinInput and corresponding
+	// bytesPerInput is the encoded size of a BigfileInput and corresponding
 	// TransactionSignature, assuming standard UnlockConditions.
 	bytesPerInput = 241
 
@@ -34,9 +34,9 @@ var (
 	// to fund a transaction.
 	ErrNotEnoughFunds = errors.New("not enough funds")
 
-	// maxFee is the maximum fee returned by RecommendedFee. It equals 1SC per
+	// maxFee is the maximum fee returned by RecommendedFee. It equals 1BIG per
 	// 2000 bytes which equals the size of a large transaction.
-	maxFee = types.Siacoins(1).Div64(2000)
+	maxFee = types.Bigfiles(1).Div64(2000)
 )
 
 type (
@@ -65,9 +65,9 @@ type (
 		// Tip returns the consensus change ID and block height of
 		// the last wallet change.
 		Tip() (types.ChainIndex, error)
-		// UnspentSiacoinElements returns the current chain tip along with a
-		// list of all unspent siacoin outputs, including immature ones.
-		UnspentSiacoinElements() (types.ChainIndex, []types.SiacoinElement, error)
+		// UnspentBigfileElements returns the current chain tip along with a
+		// list of all unspent bigfile outputs, including immature ones.
+		UnspentBigfileElements() (types.ChainIndex, []types.BigfileElement, error)
 		// WalletEvents returns a paginated list of transactions ordered by
 		// maturity height, descending. If no more transactions are available,
 		// (nil, nil) should be returned.
@@ -112,10 +112,10 @@ type (
 		cfg config
 
 		mu sync.Mutex
-		// locked is a set of siacoin output IDs locked by FundTransaction. They
+		// locked is a set of bigfile output IDs locked by FundTransaction. They
 		// will be released either by calling Release for unused transactions or
 		// being confirmed in a block.
-		locked map[types.SiacoinOutputID]time.Time
+		locked map[types.BigfileOutputID]time.Time
 	}
 
 	// A Syncer can connect to other peers and broadcast transactions to the
@@ -161,66 +161,66 @@ func (sw *SingleAddressWallet) Balance() (balance Balance, err error) {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
-	_, outputs, err := sw.store.UnspentSiacoinElements()
+	_, outputs, err := sw.store.UnspentBigfileElements()
 	if err != nil {
 		return Balance{}, fmt.Errorf("failed to get unspent outputs: %w", err)
 	}
 
-	tpoolSpent := make(map[types.SiacoinOutputID]bool)
-	tpoolUtxos := make(map[types.SiacoinOutputID]types.SiacoinElement)
+	tpoolSpent := make(map[types.BigfileOutputID]bool)
+	tpoolUtxos := make(map[types.BigfileOutputID]types.BigfileElement)
 	for _, txn := range sw.cm.PoolTransactions() {
-		for _, sci := range txn.SiacoinInputs {
-			if sci.UnlockConditions.UnlockHash() != sw.addr {
+		for _, bigi := range txn.BigfileInputs {
+			if bigi.UnlockConditions.UnlockHash() != sw.addr {
 				continue
 			}
-			tpoolSpent[sci.ParentID] = true
-			delete(tpoolUtxos, sci.ParentID)
+			tpoolSpent[bigi.ParentID] = true
+			delete(tpoolUtxos, bigi.ParentID)
 		}
-		for i, sco := range txn.SiacoinOutputs {
-			if sco.Address != sw.addr {
+		for i, bigo := range txn.BigfileOutputs {
+			if bigo.Address != sw.addr {
 				continue
 			}
 
-			outputID := txn.SiacoinOutputID(i)
-			tpoolUtxos[outputID] = types.SiacoinElement{
-				ID:            types.SiacoinOutputID(outputID),
+			outputID := txn.BigfileOutputID(i)
+			tpoolUtxos[outputID] = types.BigfileElement{
+				ID:            types.BigfileOutputID(outputID),
 				StateElement:  types.StateElement{LeafIndex: types.UnassignedLeafIndex},
-				SiacoinOutput: sco,
+				BigfileOutput: bigo,
 			}
 		}
 	}
 
 	for _, txn := range sw.cm.V2PoolTransactions() {
-		for _, si := range txn.SiacoinInputs {
-			if si.Parent.SiacoinOutput.Address != sw.addr {
+		for _, si := range txn.BigfileInputs {
+			if si.Parent.BigfileOutput.Address != sw.addr {
 				continue
 			}
 			tpoolSpent[si.Parent.ID] = true
 			delete(tpoolUtxos, si.Parent.ID)
 		}
-		for i, sco := range txn.SiacoinOutputs {
-			if sco.Address != sw.addr {
+		for i, bigo := range txn.BigfileOutputs {
+			if bigo.Address != sw.addr {
 				continue
 			}
-			sce := txn.EphemeralSiacoinOutput(i)
-			tpoolUtxos[sce.ID] = sce.Move()
+			bige := txn.EphemeralBigfileOutput(i)
+			tpoolUtxos[bige.ID] = bige.Move()
 		}
 	}
 
 	bh := sw.cm.TipState().Index.Height
-	for _, sco := range outputs {
-		if sco.MaturityHeight > bh {
-			balance.Immature = balance.Immature.Add(sco.SiacoinOutput.Value)
+	for _, bigo := range outputs {
+		if bigo.MaturityHeight > bh {
+			balance.Immature = balance.Immature.Add(bigo.BigfileOutput.Value)
 		} else {
-			balance.Confirmed = balance.Confirmed.Add(sco.SiacoinOutput.Value)
-			if !sw.isLocked(sco.ID) && !tpoolSpent[sco.ID] {
-				balance.Spendable = balance.Spendable.Add(sco.SiacoinOutput.Value)
+			balance.Confirmed = balance.Confirmed.Add(bigo.BigfileOutput.Value)
+			if !sw.isLocked(bigo.ID) && !tpoolSpent[bigo.ID] {
+				balance.Spendable = balance.Spendable.Add(bigo.BigfileOutput.Value)
 			}
 		}
 	}
 
-	for _, sco := range tpoolUtxos {
-		balance.Unconfirmed = balance.Unconfirmed.Add(sco.SiacoinOutput.Value)
+	for _, bigo := range tpoolUtxos {
+		balance.Unconfirmed = balance.Unconfirmed.Add(bigo.BigfileOutput.Value)
 	}
 	return
 }
@@ -236,40 +236,40 @@ func (sw *SingleAddressWallet) EventCount() (uint64, error) {
 	return sw.store.WalletEventCount()
 }
 
-// SpendableOutputs returns a list of spendable siacoin outputs, a spendable
+// SpendableOutputs returns a list of spendable bigfile outputs, a spendable
 // output is an unspent output that's not locked, not currently in the
 // transaction pool and that has matured.
-func (sw *SingleAddressWallet) SpendableOutputs() ([]types.SiacoinElement, error) {
+func (sw *SingleAddressWallet) SpendableOutputs() ([]types.BigfileElement, error) {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
 	// fetch outputs from the store
-	tip, utxos, err := sw.store.UnspentSiacoinElements()
+	tip, utxos, err := sw.store.UnspentBigfileElements()
 	if err != nil {
 		return nil, err
 	}
 
 	// fetch outputs currently in the pool
-	inPool := make(map[types.SiacoinOutputID]bool)
+	inPool := make(map[types.BigfileOutputID]bool)
 	for _, txn := range sw.cm.PoolTransactions() {
-		for _, sci := range txn.SiacoinInputs {
-			inPool[sci.ParentID] = true
+		for _, bigi := range txn.BigfileInputs {
+			inPool[bigi.ParentID] = true
 		}
 	}
 
 	// filter outputs that are either locked, in the pool or have not yet matured
 	unspent := utxos[:0]
-	for _, sce := range utxos {
-		if sw.isLocked(sce.ID) || inPool[sce.ID] || tip.Height < sce.MaturityHeight {
+	for _, bige := range utxos {
+		if sw.isLocked(bige.ID) || inPool[bige.ID] || tip.Height < bige.MaturityHeight {
 			continue
 		}
-		unspent = append(unspent, sce.Copy())
+		unspent = append(unspent, bige.Copy())
 	}
 	return unspent, nil
 }
 
-func (sw *SingleAddressWallet) selectUTXOs(amount types.Currency, inputs int, useUnconfirmed bool) (types.ChainIndex, []types.SiacoinElement, types.Currency, error) {
-	tip, elements, err := sw.store.UnspentSiacoinElements()
+func (sw *SingleAddressWallet) selectUTXOs(amount types.Currency, inputs int, useUnconfirmed bool) (types.ChainIndex, []types.BigfileElement, types.Currency, error) {
+	tip, elements, err := sw.store.UnspentBigfileElements()
 	if err != nil {
 		return types.ChainIndex{}, nil, types.ZeroCurrency, err
 	}
@@ -278,86 +278,86 @@ func (sw *SingleAddressWallet) selectUTXOs(amount types.Currency, inputs int, us
 		return tip, nil, types.ZeroCurrency, nil
 	}
 
-	tpoolSpent := make(map[types.SiacoinOutputID]bool)
-	tpoolUtxos := make(map[types.SiacoinOutputID]types.SiacoinElement)
+	tpoolSpent := make(map[types.BigfileOutputID]bool)
+	tpoolUtxos := make(map[types.BigfileOutputID]types.BigfileElement)
 	for _, txn := range sw.cm.PoolTransactions() {
-		for _, sci := range txn.SiacoinInputs {
-			tpoolSpent[sci.ParentID] = true
-			delete(tpoolUtxos, sci.ParentID)
+		for _, bigi := range txn.BigfileInputs {
+			tpoolSpent[bigi.ParentID] = true
+			delete(tpoolUtxos, bigi.ParentID)
 		}
-		for i, sco := range txn.SiacoinOutputs {
-			tpoolUtxos[txn.SiacoinOutputID(i)] = types.SiacoinElement{
-				ID:            txn.SiacoinOutputID(i),
+		for i, bigo := range txn.BigfileOutputs {
+			tpoolUtxos[txn.BigfileOutputID(i)] = types.BigfileElement{
+				ID:            txn.BigfileOutputID(i),
 				StateElement:  types.StateElement{LeafIndex: types.UnassignedLeafIndex},
-				SiacoinOutput: sco,
+				BigfileOutput: bigo,
 			}
 		}
 	}
 	for _, txn := range sw.cm.V2PoolTransactions() {
-		for _, sci := range txn.SiacoinInputs {
-			tpoolSpent[sci.Parent.ID] = true
-			delete(tpoolUtxos, sci.Parent.ID)
+		for _, bigi := range txn.BigfileInputs {
+			tpoolSpent[bigi.Parent.ID] = true
+			delete(tpoolUtxos, bigi.Parent.ID)
 		}
-		for i := range txn.SiacoinOutputs {
-			sce := txn.EphemeralSiacoinOutput(i)
-			tpoolUtxos[sce.ID] = sce.Move()
+		for i := range txn.BigfileOutputs {
+			bige := txn.EphemeralBigfileOutput(i)
+			tpoolUtxos[bige.ID] = bige.Move()
 		}
 	}
 
 	// remove immature, locked and spent outputs
-	utxos := make([]types.SiacoinElement, 0, len(elements))
+	utxos := make([]types.BigfileElement, 0, len(elements))
 	var usedSum types.Currency
 	var immatureSum types.Currency
-	for _, sce := range elements {
-		if used := sw.isLocked(sce.ID) || tpoolSpent[sce.ID]; used {
-			usedSum = usedSum.Add(sce.SiacoinOutput.Value)
+	for _, bige := range elements {
+		if used := sw.isLocked(bige.ID) || tpoolSpent[bige.ID]; used {
+			usedSum = usedSum.Add(bige.BigfileOutput.Value)
 			continue
-		} else if immature := tip.Height < sce.MaturityHeight; immature {
-			immatureSum = immatureSum.Add(sce.SiacoinOutput.Value)
+		} else if immature := tip.Height < bige.MaturityHeight; immature {
+			immatureSum = immatureSum.Add(bige.BigfileOutput.Value)
 			continue
 		}
-		utxos = append(utxos, sce.Share())
+		utxos = append(utxos, bige.Share())
 	}
 
 	// sort by value, descending
 	sort.Slice(utxos, func(i, j int) bool {
-		return utxos[i].SiacoinOutput.Value.Cmp(utxos[j].SiacoinOutput.Value) > 0
+		return utxos[i].BigfileOutput.Value.Cmp(utxos[j].BigfileOutput.Value) > 0
 	})
 
-	var unconfirmedUTXOs []types.SiacoinElement
+	var unconfirmedUTXOs []types.BigfileElement
 	var unconfirmedSum types.Currency
 	if useUnconfirmed {
-		for _, sce := range tpoolUtxos {
-			if sce.SiacoinOutput.Address != sw.addr || sw.isLocked(sce.ID) {
+		for _, bige := range tpoolUtxos {
+			if bige.BigfileOutput.Address != sw.addr || sw.isLocked(bige.ID) {
 				continue
 			}
-			unconfirmedUTXOs = append(unconfirmedUTXOs, sce.Share())
-			unconfirmedSum = unconfirmedSum.Add(sce.SiacoinOutput.Value)
+			unconfirmedUTXOs = append(unconfirmedUTXOs, bige.Share())
+			unconfirmedSum = unconfirmedSum.Add(bige.BigfileOutput.Value)
 		}
 	}
 
 	// sort by value, descending
 	sort.Slice(unconfirmedUTXOs, func(i, j int) bool {
-		return unconfirmedUTXOs[i].SiacoinOutput.Value.Cmp(unconfirmedUTXOs[j].SiacoinOutput.Value) > 0
+		return unconfirmedUTXOs[i].BigfileOutput.Value.Cmp(unconfirmedUTXOs[j].BigfileOutput.Value) > 0
 	})
 
 	// fund the transaction using the largest utxos first
-	var selected []types.SiacoinElement
+	var selected []types.BigfileElement
 	var inputSum types.Currency
-	for i, sce := range utxos {
+	for i, bige := range utxos {
 		if inputSum.Cmp(amount) >= 0 {
 			utxos = utxos[i:]
 			break
 		}
-		selected = append(selected, sce.Share())
-		inputSum = inputSum.Add(sce.SiacoinOutput.Value)
+		selected = append(selected, bige.Share())
+		inputSum = inputSum.Add(bige.BigfileOutput.Value)
 	}
 
 	if inputSum.Cmp(amount) < 0 && useUnconfirmed {
 		// try adding unconfirmed utxos.
-		for _, sce := range unconfirmedUTXOs {
-			selected = append(selected, sce.Share())
-			inputSum = inputSum.Add(sce.SiacoinOutput.Value)
+		for _, bige := range unconfirmedUTXOs {
+			selected = append(selected, bige.Share())
+			inputSum = inputSum.Add(bige.BigfileOutput.Value)
 			if inputSum.Cmp(amount) >= 0 {
 				break
 			}
@@ -384,9 +384,9 @@ func (sw *SingleAddressWallet) selectUTXOs(amount types.Currency, inputs int, us
 				break
 			}
 
-			sce := &defraggable[i]
-			selected = append(selected, sce.Share())
-			inputSum = inputSum.Add(sce.SiacoinOutput.Value)
+			bige := &defraggable[i]
+			selected = append(selected, bige.Share())
+			inputSum = inputSum.Add(bige.BigfileOutput.Value)
 			txnInputs++
 		}
 	}
@@ -404,10 +404,10 @@ func (sw *SingleAddressWallet) cleanLockedUTXOs() {
 	}
 }
 
-// lockUTXOs locks the given siacoin output IDs for use in a transaction.
+// lockUTXOs locks the given bigfile output IDs for use in a transaction.
 // The outputs will be unlocked after the given time.
 // It is expected that the caller will hold sw.mu.
-func (sw *SingleAddressWallet) lockUTXOs(ids []types.SiacoinOutputID) {
+func (sw *SingleAddressWallet) lockUTXOs(ids []types.BigfileOutputID) {
 	sw.cleanLockedUTXOs()
 	if len(ids) == 0 {
 		return
@@ -418,7 +418,7 @@ func (sw *SingleAddressWallet) lockUTXOs(ids []types.SiacoinOutputID) {
 	}
 }
 
-// FundTransaction adds siacoin inputs worth at least amount to the provided
+// FundTransaction adds bigfile inputs worth at least amount to the provided
 // transaction. If necessary, a change output will also be added. The inputs
 // will not be available to future calls to FundTransaction unless ReleaseInputs
 // is called.
@@ -430,28 +430,28 @@ func (sw *SingleAddressWallet) FundTransaction(txn *types.Transaction, amount ty
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
-	_, selected, inputSum, err := sw.selectUTXOs(amount, len(txn.SiacoinInputs), useUnconfirmed)
+	_, selected, inputSum, err := sw.selectUTXOs(amount, len(txn.BigfileInputs), useUnconfirmed)
 	if err != nil {
 		return nil, err
 	}
 
 	// add a change output if necessary
 	if inputSum.Cmp(amount) > 0 {
-		txn.SiacoinOutputs = append(txn.SiacoinOutputs, types.SiacoinOutput{
+		txn.BigfileOutputs = append(txn.BigfileOutputs, types.BigfileOutput{
 			Value:   inputSum.Sub(amount),
 			Address: sw.addr,
 		})
 	}
 
-	toLock := make([]types.SiacoinOutputID, 0, len(selected))
+	toLock := make([]types.BigfileOutputID, 0, len(selected))
 	toSign := make([]types.Hash256, 0, len(selected))
-	for _, sce := range selected {
-		txn.SiacoinInputs = append(txn.SiacoinInputs, types.SiacoinInput{
-			ParentID:         sce.ID,
+	for _, bige := range selected {
+		txn.BigfileInputs = append(txn.BigfileInputs, types.BigfileInput{
+			ParentID:         bige.ID,
 			UnlockConditions: types.StandardUnlockConditions(sw.priv.PublicKey()),
 		})
-		toSign = append(toSign, types.Hash256(sce.ID))
-		toLock = append(toLock, sce.ID)
+		toSign = append(toSign, types.Hash256(bige.ID))
+		toLock = append(toLock, bige.ID)
 	}
 	sw.lockUTXOs(toLock)
 	return toSign, nil
@@ -478,7 +478,7 @@ func (sw *SingleAddressWallet) SignTransaction(txn *types.Transaction, toSign []
 	}
 }
 
-// FundV2Transaction adds siacoin inputs worth at least amount to the provided
+// FundV2Transaction adds bigfile inputs worth at least amount to the provided
 // transaction. If necessary, a change output will also be added. The inputs
 // will not be available to future calls to FundTransaction unless ReleaseInputs
 // is called.
@@ -493,34 +493,34 @@ func (sw *SingleAddressWallet) FundV2Transaction(txn *types.V2Transaction, amoun
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
-	tip, selected, inputSum, err := sw.selectUTXOs(amount, len(txn.SiacoinInputs), useUnconfirmed)
+	tip, selected, inputSum, err := sw.selectUTXOs(amount, len(txn.BigfileInputs), useUnconfirmed)
 	if err != nil {
 		return types.ChainIndex{}, nil, err
 	}
 
 	// add a change output if necessary
 	if inputSum.Cmp(amount) > 0 {
-		txn.SiacoinOutputs = append(txn.SiacoinOutputs, types.SiacoinOutput{
+		txn.BigfileOutputs = append(txn.BigfileOutputs, types.BigfileOutput{
 			Value:   inputSum.Sub(amount),
 			Address: sw.addr,
 		})
 	}
 
-	toLock := make([]types.SiacoinOutputID, 0, len(selected))
+	toLock := make([]types.BigfileOutputID, 0, len(selected))
 	toSign := make([]int, 0, len(selected))
-	for _, sce := range selected {
-		toSign = append(toSign, len(txn.SiacoinInputs))
-		txn.SiacoinInputs = append(txn.SiacoinInputs, types.V2SiacoinInput{
-			Parent: sce.Copy(),
+	for _, bige := range selected {
+		toSign = append(toSign, len(txn.BigfileInputs))
+		txn.BigfileInputs = append(txn.BigfileInputs, types.V2BigfileInput{
+			Parent: bige.Copy(),
 		})
-		toLock = append(toLock, sce.ID)
+		toLock = append(toLock, bige.ID)
 	}
 
 	sw.lockUTXOs(toLock)
 	return tip, toSign, nil
 }
 
-// SignV2Inputs adds a signature to each of the specified siacoin inputs.
+// SignV2Inputs adds a signature to each of the specified bigfile inputs.
 func (sw *SingleAddressWallet) SignV2Inputs(txn *types.V2Transaction, toSign []int) {
 	if len(toSign) == 0 {
 		return
@@ -532,7 +532,7 @@ func (sw *SingleAddressWallet) SignV2Inputs(txn *types.V2Transaction, toSign []i
 	policy := sw.SpendPolicy()
 	sigHash := sw.cm.TipState().InputSigHash(*txn)
 	for _, i := range toSign {
-		txn.SiacoinInputs[i].SatisfiedPolicy = types.SatisfiedPolicy{
+		txn.BigfileInputs[i].SatisfiedPolicy = types.SatisfiedPolicy{
 			Policy:     policy,
 			Signatures: []types.Signature{sw.SignHash(sigHash)},
 		}
@@ -557,12 +557,12 @@ func (sw *SingleAddressWallet) SignHash(h types.Hash256) types.Signature {
 // UnconfirmedEvents returns all unconfirmed transactions relevant to the
 // wallet.
 func (sw *SingleAddressWallet) UnconfirmedEvents() (annotated []Event, err error) {
-	tip, confirmed, err := sw.store.UnspentSiacoinElements()
+	tip, confirmed, err := sw.store.UnspentBigfileElements()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get unspent outputs: %w", err)
 	}
 
-	utxos := make(map[types.SiacoinOutputID]types.SiacoinElement)
+	utxos := make(map[types.BigfileOutputID]types.BigfileElement)
 	for _, se := range confirmed {
 		utxos[se.ID] = se.Share()
 	}
@@ -581,7 +581,7 @@ func (sw *SingleAddressWallet) UnconfirmedEvents() (annotated []Event, err error
 			Relevant:       []types.Address{sw.addr},
 		}
 
-		if ev.SiacoinInflow().Equals(ev.SiacoinOutflow()) {
+		if ev.BigfileInflow().Equals(ev.BigfileOutflow()) {
 			// ignore events that don't affect the wallet
 			return
 		}
@@ -594,24 +594,24 @@ func (sw *SingleAddressWallet) UnconfirmedEvents() (annotated []Event, err error
 		}
 
 		var outflow types.Currency
-		for _, sci := range txn.SiacoinInputs {
-			sce, ok := utxos[sci.ParentID]
+		for _, bigi := range txn.BigfileInputs {
+			bige, ok := utxos[bigi.ParentID]
 			if !ok {
 				// ignore inputs that don't belong to the wallet
 				continue
 			}
-			outflow = outflow.Add(sce.SiacoinOutput.Value)
-			event.SpentSiacoinElements = append(event.SpentSiacoinElements, sce.Share())
+			outflow = outflow.Add(bige.BigfileOutput.Value)
+			event.SpentBigfileElements = append(event.SpentBigfileElements, bige.Share())
 		}
 
 		var inflow types.Currency
-		for i, so := range txn.SiacoinOutputs {
+		for i, so := range txn.BigfileOutputs {
 			if so.Address == sw.addr {
 				inflow = inflow.Add(so.Value)
-				utxos[txn.SiacoinOutputID(i)] = types.SiacoinElement{
-					ID:            txn.SiacoinOutputID(i),
+				utxos[txn.BigfileOutputID(i)] = types.BigfileElement{
+					ID:            txn.BigfileOutputID(i),
 					StateElement:  types.StateElement{LeafIndex: types.UnassignedLeafIndex},
-					SiacoinOutput: so,
+					BigfileOutput: so,
 				}
 			}
 		}
@@ -625,18 +625,18 @@ func (sw *SingleAddressWallet) UnconfirmedEvents() (annotated []Event, err error
 
 	for _, txn := range sw.cm.V2PoolTransactions() {
 		var inflow, outflow types.Currency
-		for _, sci := range txn.SiacoinInputs {
-			if sci.Parent.SiacoinOutput.Address != sw.addr {
+		for _, bigi := range txn.BigfileInputs {
+			if bigi.Parent.BigfileOutput.Address != sw.addr {
 				continue
 			}
-			outflow = outflow.Add(sci.Parent.SiacoinOutput.Value)
+			outflow = outflow.Add(bigi.Parent.BigfileOutput.Value)
 		}
 
-		for _, sco := range txn.SiacoinOutputs {
-			if sco.Address != sw.addr {
+		for _, bigo := range txn.BigfileOutputs {
+			if bigo.Address != sw.addr {
 				continue
 			}
-			inflow = inflow.Add(sco.Value)
+			inflow = inflow.Add(bigo.Value)
 		}
 
 		// skip transactions that don't affect the wallet
@@ -649,27 +649,27 @@ func (sw *SingleAddressWallet) UnconfirmedEvents() (annotated []Event, err error
 	return annotated, nil
 }
 
-func (sw *SingleAddressWallet) selectRedistributeUTXOs(bh uint64, outputs int, amount types.Currency, elements []types.SiacoinElement) ([]types.SiacoinElement, int, error) {
+func (sw *SingleAddressWallet) selectRedistributeUTXOs(bh uint64, outputs int, amount types.Currency, elements []types.BigfileElement) ([]types.BigfileElement, int, error) {
 	// fetch outputs currently in the pool
-	inPool := make(map[types.SiacoinOutputID]bool)
+	inPool := make(map[types.BigfileOutputID]bool)
 	for _, txn := range sw.cm.PoolTransactions() {
-		for _, sci := range txn.SiacoinInputs {
-			inPool[sci.ParentID] = true
+		for _, bigi := range txn.BigfileInputs {
+			inPool[bigi.ParentID] = true
 		}
 	}
 	for _, txn := range sw.cm.V2PoolTransactions() {
-		for _, sci := range txn.SiacoinInputs {
-			inPool[sci.Parent.ID] = true
+		for _, bigi := range txn.BigfileInputs {
+			inPool[bigi.Parent.ID] = true
 		}
 	}
 
 	// adjust the number of desired outputs for any output we encounter that is
 	// unused, matured and has the same value
-	utxos := make([]types.SiacoinElement, 0, len(elements))
-	for _, sce := range elements {
-		inUse := sw.isLocked(sce.ID) || inPool[sce.ID]
-		matured := bh >= sce.MaturityHeight
-		sameValue := sce.SiacoinOutput.Value.Equals(amount)
+	utxos := make([]types.BigfileElement, 0, len(elements))
+	for _, bige := range elements {
+		inUse := sw.isLocked(bige.ID) || inPool[bige.ID]
+		matured := bh >= bige.MaturityHeight
+		sameValue := bige.BigfileOutput.Value.Equals(amount)
 
 		// adjust number of desired outputs
 		if !inUse && matured && sameValue {
@@ -678,12 +678,12 @@ func (sw *SingleAddressWallet) selectRedistributeUTXOs(bh uint64, outputs int, a
 
 		// collect usable outputs for defragging
 		if !inUse && matured && !sameValue {
-			utxos = append(utxos, sce.Share())
+			utxos = append(utxos, bige.Share())
 		}
 	}
 	// desc sort
 	sort.Slice(utxos, func(i, j int) bool {
-		return utxos[i].SiacoinOutput.Value.Cmp(utxos[j].SiacoinOutput.Value) > 0
+		return utxos[i].BigfileOutput.Value.Cmp(utxos[j].BigfileOutput.Value) > 0
 	})
 	return utxos, outputs, nil
 }
@@ -697,12 +697,12 @@ func (sw *SingleAddressWallet) Redistribute(outputs int, amount, feePerByte type
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
-	tip, elements, err := sw.store.UnspentSiacoinElements()
+	tip, elements, err := sw.store.UnspentBigfileElements()
 	if err != nil {
 		return types.ChainIndex{}, nil, nil, err
 	}
 
-	var toLock []types.SiacoinOutputID
+	var toLock []types.BigfileOutputID
 	utxos, outputs, err := sw.selectRedistributeUTXOs(tip.Height, outputs, amount, elements)
 	if err != nil {
 		return types.ChainIndex{}, nil, nil, err
@@ -721,22 +721,22 @@ func (sw *SingleAddressWallet) Redistribute(outputs int, amount, feePerByte type
 	for outputs > 0 {
 		var txn types.V2Transaction
 		for i := 0; i < outputs && i < redistributeBatchSize; i++ {
-			txn.SiacoinOutputs = append(txn.SiacoinOutputs, types.SiacoinOutput{
+			txn.BigfileOutputs = append(txn.BigfileOutputs, types.BigfileOutput{
 				Value:   amount,
 				Address: sw.addr,
 			})
 		}
-		outputs -= len(txn.SiacoinOutputs)
+		outputs -= len(txn.BigfileOutputs)
 
 		// estimate the fees
 		outputFees := feePerByte.Mul64(state.V2TransactionWeight(txn))
 		feePerInput := feePerByte.Mul64(bytesPerInput)
 
 		// collect outputs that cover the total amount
-		var inputs []types.SiacoinElement
-		want := amount.Mul64(uint64(len(txn.SiacoinOutputs)))
-		for _, sce := range utxos {
-			inputs = append(inputs, sce.Copy())
+		var inputs []types.BigfileElement
+		want := amount.Mul64(uint64(len(txn.BigfileOutputs)))
+		for _, bige := range utxos {
+			inputs = append(inputs, bige.Copy())
 			fee := feePerInput.Mul64(uint64(len(inputs))).Add(outputFees)
 			if SumOutputs(inputs).Cmp(want.Add(fee)) > 0 {
 				break
@@ -764,7 +764,7 @@ func (sw *SingleAddressWallet) Redistribute(outputs int, amount, feePerByte type
 		// add the change output
 		change := SumOutputs(inputs).Sub(want.Add(fee))
 		if !change.IsZero() {
-			txn.SiacoinOutputs = append(txn.SiacoinOutputs, types.SiacoinOutput{
+			txn.BigfileOutputs = append(txn.BigfileOutputs, types.BigfileOutput{
 				Value:   change,
 				Address: sw.addr,
 			})
@@ -772,12 +772,12 @@ func (sw *SingleAddressWallet) Redistribute(outputs int, amount, feePerByte type
 
 		// add the inputs
 		toSignTxn := make([]int, 0, len(inputs))
-		for _, sce := range inputs {
-			toSignTxn = append(toSignTxn, len(txn.SiacoinInputs))
-			txn.SiacoinInputs = append(txn.SiacoinInputs, types.V2SiacoinInput{
-				Parent: sce.Move(),
+		for _, bige := range inputs {
+			toSignTxn = append(toSignTxn, len(txn.BigfileInputs))
+			txn.BigfileInputs = append(txn.BigfileInputs, types.V2BigfileInput{
+				Parent: bige.Move(),
 			})
-			toLock = append(toLock, sce.ID)
+			toLock = append(toLock, bige.ID)
 		}
 		txns = append(txns, txn)
 		toSign = append(toSign, toSignTxn)
@@ -795,21 +795,21 @@ func (sw *SingleAddressWallet) ReleaseInputs(txns []types.Transaction, v2txns []
 	defer sw.mu.Unlock()
 
 	for _, txn := range txns {
-		for _, in := range txn.SiacoinInputs {
+		for _, in := range txn.BigfileInputs {
 			delete(sw.locked, in.ParentID)
 		}
 	}
 	for _, txn := range v2txns {
-		for _, in := range txn.SiacoinInputs {
+		for _, in := range txn.BigfileInputs {
 			delete(sw.locked, in.Parent.ID)
 		}
 	}
 	sw.cleanLockedUTXOs()
 }
 
-// isLocked returns true if the siacoin output with given id is locked, this
+// isLocked returns true if the bigfile output with given id is locked, this
 // method must be called whilst holding the mutex lock.
-func (sw *SingleAddressWallet) isLocked(id types.SiacoinOutputID) bool {
+func (sw *SingleAddressWallet) isLocked(id types.BigfileOutputID) bool {
 	return time.Now().Before(sw.locked[id])
 }
 
@@ -842,26 +842,26 @@ func (sw *SingleAddressWallet) RecommendedFee() types.Currency {
 // IsRelevantTransaction returns true if the v1 transaction is relevant to the
 // address
 func IsRelevantTransaction(txn types.Transaction, addr types.Address) bool {
-	for _, sci := range txn.SiacoinInputs {
-		if sci.UnlockConditions.UnlockHash() == addr {
+	for _, bigi := range txn.BigfileInputs {
+		if bigi.UnlockConditions.UnlockHash() == addr {
 			return true
 		}
 	}
 
-	for _, sco := range txn.SiacoinOutputs {
-		if sco.Address == addr {
+	for _, bigo := range txn.BigfileOutputs {
+		if bigo.Address == addr {
 			return true
 		}
 	}
 
-	for _, sci := range txn.SiafundInputs {
-		if sci.UnlockConditions.UnlockHash() == addr {
+	for _, bigi := range txn.BigfundInputs {
+		if bigi.UnlockConditions.UnlockHash() == addr {
 			return true
 		}
 	}
 
-	for _, sfo := range txn.SiafundOutputs {
-		if sfo.Address == addr {
+	for _, bfo := range txn.BigfundOutputs {
+		if bfo.Address == addr {
 			return true
 		}
 	}
@@ -871,11 +871,11 @@ func IsRelevantTransaction(txn types.Transaction, addr types.Address) bool {
 // ExplicitCoveredFields returns a CoveredFields that covers all elements
 // present in txn.
 func ExplicitCoveredFields(txn types.Transaction) (cf types.CoveredFields) {
-	for i := range txn.SiacoinInputs {
-		cf.SiacoinInputs = append(cf.SiacoinInputs, uint64(i))
+	for i := range txn.BigfileInputs {
+		cf.BigfileInputs = append(cf.BigfileInputs, uint64(i))
 	}
-	for i := range txn.SiacoinOutputs {
-		cf.SiacoinOutputs = append(cf.SiacoinOutputs, uint64(i))
+	for i := range txn.BigfileOutputs {
+		cf.BigfileOutputs = append(cf.BigfileOutputs, uint64(i))
 	}
 	for i := range txn.FileContracts {
 		cf.FileContracts = append(cf.FileContracts, uint64(i))
@@ -886,11 +886,11 @@ func ExplicitCoveredFields(txn types.Transaction) (cf types.CoveredFields) {
 	for i := range txn.StorageProofs {
 		cf.StorageProofs = append(cf.StorageProofs, uint64(i))
 	}
-	for i := range txn.SiafundInputs {
-		cf.SiafundInputs = append(cf.SiafundInputs, uint64(i))
+	for i := range txn.BigfundInputs {
+		cf.BigfundInputs = append(cf.BigfundInputs, uint64(i))
 	}
-	for i := range txn.SiafundOutputs {
-		cf.SiafundOutputs = append(cf.SiafundOutputs, uint64(i))
+	for i := range txn.BigfundOutputs {
+		cf.BigfundOutputs = append(cf.BigfundOutputs, uint64(i))
 	}
 	for i := range txn.MinerFees {
 		cf.MinerFees = append(cf.MinerFees, uint64(i))
@@ -905,9 +905,9 @@ func ExplicitCoveredFields(txn types.Transaction) (cf types.CoveredFields) {
 }
 
 // SumOutputs returns the total value of the supplied outputs.
-func SumOutputs(outputs []types.SiacoinElement) (sum types.Currency) {
+func SumOutputs(outputs []types.BigfileElement) (sum types.Currency) {
 	for _, o := range outputs {
-		sum = sum.Add(o.SiacoinOutput.Value)
+		sum = sum.Add(o.BigfileOutput.Value)
 	}
 	return
 }
@@ -939,7 +939,7 @@ func NewSingleAddressWallet(priv types.PrivateKey, cm ChainManager, store Single
 
 		addr: types.StandardUnlockHash(priv.PublicKey()),
 
-		locked: make(map[types.SiacoinOutputID]time.Time),
+		locked: make(map[types.BigfileOutputID]time.Time),
 	}
 
 	// load the broadcasted transactions and add them to the pool, we don't

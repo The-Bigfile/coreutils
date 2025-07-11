@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
-	"go.sia.tech/coreutils/testutil"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
+	"go.thebigfile.com/coreutils/testutil"
 	"lukechampine.com/frand"
 )
 
@@ -25,26 +25,26 @@ import (
 //	∴  payout = (renterPayout + hostPayout) / (1 - tax)
 //
 // This would work if 'tax' were a simple fraction, but because the tax must
-// be evenly distributed among siafund holders, 'tax' is actually a function
+// be evenly distributed among bigfund holders, 'tax' is actually a function
 // that multiplies by a fraction and then rounds down to the nearest multiple
-// of the siafund count. Thus, when inverting the function, we have to make an
+// of the bigfund count. Thus, when inverting the function, we have to make an
 // initial guess and then fix the rounding error.
 func taxAdjustedPayout(target types.Currency) types.Currency {
 	// compute initial guess as target * (1 / 1-tax); since this does not take
-	// the siafund rounding into account, the guess will be up to
-	// types.SiafundCount greater than the actual payout value.
+	// the bigfund rounding into account, the guess will be up to
+	// types.BigfundCount greater than the actual payout value.
 	guess := target.Mul64(1000).Div64(961)
 
 	// now, adjust the guess to remove the rounding error. We know that:
 	//
-	//   (target % types.SiafundCount) == (payout % types.SiafundCount)
+	//   (target % types.BigfundCount) == (payout % types.BigfundCount)
 	//
 	// therefore, we can simply adjust the guess to have this remainder as
 	// well. The only wrinkle is that, since we know guess >= payout, if the
 	// guess remainder is smaller than the target remainder, we must subtract
-	// an extra types.SiafundCount.
+	// an extra types.BigfundCount.
 	//
-	// for example, if target = 87654321 and types.SiafundCount = 10000, then:
+	// for example, if target = 87654321 and types.BigfundCount = 10000, then:
 	//
 	//   initial_guess  = 87654321 * (1 / (1 - tax))
 	//                  = 91211572
@@ -61,11 +61,11 @@ func taxAdjustedPayout(target types.Currency) types.Currency {
 		}
 		return types.NewCurrency64(r)
 	}
-	sfc := (consensus.State{}).SiafundCount()
-	tm := mod64(target, sfc)
-	gm := mod64(guess, sfc)
+	bfc := (consensus.State{}).BigfundCount()
+	tm := mod64(target, bfc)
+	gm := mod64(guess, bfc)
 	if gm.Cmp(tm) < 0 {
-		guess = guess.Sub(types.NewCurrency64(sfc))
+		guess = guess.Sub(types.NewCurrency64(bfc))
 	}
 	return guess.Add(tm).Sub(gm)
 }
@@ -90,7 +90,7 @@ func TestExpiringFileContracts(t *testing.T) {
 	// create two file contracts with the same expiration height
 	b := types.Block{
 		ParentID:     cs.Index.ID,
-		MinerPayouts: []types.SiacoinOutput{{Value: cs.BlockReward()}},
+		MinerPayouts: []types.BigfileOutput{{Value: cs.BlockReward()}},
 		Transactions: []types.Transaction{{
 			FileContracts: []types.FileContract{
 				{FileMerkleRoot: frand.Entropy256(), WindowEnd: 2},
@@ -108,7 +108,7 @@ func TestExpiringFileContracts(t *testing.T) {
 	// apply another block, causing the expired contracts to be removed
 	b = types.Block{
 		ParentID:     cs.Index.ID,
-		MinerPayouts: []types.SiacoinOutput{{Value: cs.BlockReward()}},
+		MinerPayouts: []types.BigfileOutput{{Value: cs.BlockReward()}},
 	}
 	bs = store.SupplementTipBlock(b)
 	if len(bs.ExpiringFileContracts) != 2 {
@@ -141,11 +141,11 @@ func TestReorgExpiringFileContractOrder(t *testing.T) {
 	uc := types.StandardUnlockConditions(sk.PublicKey())
 	addr := uc.UnlockHash()
 
-	genesis.Transactions[0].SiacoinOutputs = []types.SiacoinOutput{
-		{Address: addr, Value: types.Siacoins(1000)},
+	genesis.Transactions[0].BigfileOutputs = []types.BigfileOutput{
+		{Address: addr, Value: types.Bigfiles(1000)},
 	}
-	giftAmount := types.Siacoins(1000)
-	giftUTXOID := genesis.Transactions[0].SiacoinOutputID(0)
+	giftAmount := types.Bigfiles(1000)
+	giftUTXOID := genesis.Transactions[0].BigfileOutputID(0)
 
 	db1, ts1, err := chain.NewDBStore(chain.NewMemDB(), n, genesis, nil)
 	if err != nil {
@@ -155,26 +155,26 @@ func TestReorgExpiringFileContractOrder(t *testing.T) {
 
 	newFileContract := func() types.FileContract {
 		return types.FileContract{
-			Payout:         taxAdjustedPayout(types.Siacoins(1)),
+			Payout:         taxAdjustedPayout(types.Bigfiles(1)),
 			FileMerkleRoot: frand.Entropy256(),
 			WindowStart:    3,
 			WindowEnd:      6,
-			ValidProofOutputs: []types.SiacoinOutput{
-				{Value: types.Siacoins(1), Address: addr},
+			ValidProofOutputs: []types.BigfileOutput{
+				{Value: types.Bigfiles(1), Address: addr},
 			},
-			MissedProofOutputs: []types.SiacoinOutput{
-				{Value: types.Siacoins(1), Address: addr},
+			MissedProofOutputs: []types.BigfileOutput{
+				{Value: types.Bigfiles(1), Address: addr},
 			},
 			UnlockHash: uc.UnlockHash(),
 		}
 	}
 
-	cost := taxAdjustedPayout(types.Siacoins(1)).Mul64(3) // 3 contracts, each with 1 SC proof output
+	cost := taxAdjustedPayout(types.Bigfiles(1)).Mul64(3) // 3 contracts, each with 1 BIG proof output
 	formationTxn := types.Transaction{
-		SiacoinInputs: []types.SiacoinInput{
+		BigfileInputs: []types.BigfileInput{
 			{ParentID: giftUTXOID, UnlockConditions: uc},
 		},
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigfileOutputs: []types.BigfileOutput{
 			{Value: giftAmount.Sub(cost), Address: addr}, // Refund output
 		},
 		FileContracts: []types.FileContract{
@@ -198,20 +198,20 @@ func TestReorgExpiringFileContractOrder(t *testing.T) {
 	// Block 1: three contracts that all expire at height 3 (A, B, C).
 	testutil.MineBlocks(t, cm1, types.VoidAddress, 1)
 	// update the gift UTXO ID and amount for the next transaction
-	giftUTXOID = formationTxn.SiacoinOutputID(0)
-	giftAmount = formationTxn.SiacoinOutputs[0].Value
+	giftUTXOID = formationTxn.BigfileOutputID(0)
+	giftAmount = formationTxn.BigfileOutputs[0].Value
 
 	contractA := formationTxn.FileContractID(0)
 	contractB := formationTxn.FileContractID(1)
 	contractC := formationTxn.FileContractID(2)
 
 	cs = cm1.TipState()
-	cost = taxAdjustedPayout(types.Siacoins(1)) // 1 contract with 1 SC proof output
+	cost = taxAdjustedPayout(types.Bigfiles(1)) // 1 contract with 1 BIG proof output
 	formationTxn2 := types.Transaction{
-		SiacoinInputs: []types.SiacoinInput{
+		BigfileInputs: []types.BigfileInput{
 			{ParentID: giftUTXOID, UnlockConditions: uc},
 		},
-		SiacoinOutputs: []types.SiacoinOutput{
+		BigfileOutputs: []types.BigfileOutput{
 			{Value: giftAmount.Sub(cost), Address: addr}, // Refund output
 		},
 		FileContracts: []types.FileContract{

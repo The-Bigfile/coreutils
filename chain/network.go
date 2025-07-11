@@ -3,8 +3,8 @@ package chain
 import (
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/types"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/types"
 )
 
 func parseAddr(s string) types.Address {
@@ -15,14 +15,14 @@ func parseAddr(s string) types.Address {
 	return addr
 }
 
-// Mainnet returns the network parameters and genesis block for the mainnet Sia
+// Mainnet returns the network parameters and genesis block for the mainnet Bigfile
 // blockchain.
 func Mainnet() (*consensus.Network, types.Block) {
 	n := &consensus.Network{
 		Name: "mainnet",
 
-		InitialCoinbase: types.Siacoins(300000),
-		MinimumCoinbase: types.Siacoins(30000),
+		InitialCoinbase: types.Bigfiles(300000),
+		MinimumCoinbase: types.Bigfiles(30000),
 		InitialTarget:   types.BlockID{4: 32},
 		BlockInterval:   10 * time.Minute,
 		MaturityDelay:   144,
@@ -53,7 +53,7 @@ func Mainnet() (*consensus.Network, types.Block) {
 	b := types.Block{
 		Timestamp: n.HardforkOak.GenesisTimestamp,
 		Transactions: []types.Transaction{{
-			SiafundOutputs: []types.SiafundOutput{
+			BigfundOutputs: []types.BigfundOutput{
 				{Address: parseAddr("0439e5bc7f14ccf5d3a7e882d040923e45625166dd077b64466bc771791ac6fcec1c01394436"), Value: 2},
 				{Address: parseAddr("049e1d2a69772b058a48bebe65724ff3bdf8d0971ebbe994e1e91c9f13e84bf4cbfe00accf31"), Value: 6},
 				{Address: parseAddr("080742fa194af76ca24fdc97cae4f10b828a0df8c1a788c5413feaaecdd847e60a82a3240411"), Value: 7},
@@ -114,8 +114,8 @@ func TestnetZen() (*consensus.Network, types.Block) {
 	n := &consensus.Network{
 		Name: "zen",
 
-		InitialCoinbase: types.Siacoins(300000),
-		MinimumCoinbase: types.Siacoins(300000),
+		InitialCoinbase: types.Bigfiles(300000),
+		MinimumCoinbase: types.Bigfiles(300000),
 		InitialTarget:   types.BlockID{3: 1},
 		BlockInterval:   10 * time.Minute,
 		MaturityDelay:   144,
@@ -147,11 +147,11 @@ func TestnetZen() (*consensus.Network, types.Block) {
 	b := types.Block{
 		Timestamp: n.HardforkOak.GenesisTimestamp,
 		Transactions: []types.Transaction{{
-			SiacoinOutputs: []types.SiacoinOutput{{
+			BigfileOutputs: []types.BigfileOutput{{
 				Address: parseAddr("3d7f707d05f2e0ec7ccc9220ed7c8af3bc560fbee84d068c2cc28151d617899e1ee8bc069946"),
-				Value:   types.Siacoins(1).Mul64(1e12),
+				Value:   types.Bigfiles(1).Mul64(1e12),
 			}},
-			SiafundOutputs: []types.SiafundOutput{{
+			BigfundOutputs: []types.BigfundOutput{{
 				Address: parseAddr("053b2def3cbdd078c19d62ce2b4f0b1a3c5e0ffbeeff01280efb1f8969b2f5bb4fdc680f0807"),
 				Value:   10000,
 			}},
@@ -176,11 +176,11 @@ func TestnetAnagami() (*consensus.Network, types.Block) {
 	n.HardforkFoundation.FailsafeAddress = types.VoidAddress
 
 	// move the genesis airdrops for easier testing
-	genesis.Transactions[0].SiacoinOutputs = []types.SiacoinOutput{{
+	genesis.Transactions[0].BigfileOutputs = []types.BigfileOutput{{
 		Address: parseAddr("241352c83da002e61f57e96b14f3a5f8b5de22156ce83b753ea495e64f1affebae88736b2347"),
-		Value:   types.Siacoins(1).Mul64(1e12),
+		Value:   types.Bigfiles(1).Mul64(1e12),
 	}}
-	genesis.Transactions[0].SiafundOutputs = []types.SiafundOutput{{
+	genesis.Transactions[0].BigfundOutputs = []types.BigfundOutput{{
 		Address: parseAddr("241352c83da002e61f57e96b14f3a5f8b5de22156ce83b753ea495e64f1affebae88736b2347"),
 		Value:   10000,
 	}}
@@ -203,11 +203,11 @@ func TestnetErravimus() (*consensus.Network, types.Block) {
 	n.HardforkFoundation.FailsafeAddress = types.VoidAddress
 
 	// move the genesis airdrops for easier testing
-	genesis.Transactions[0].SiacoinOutputs = []types.SiacoinOutput{{
+	genesis.Transactions[0].BigfileOutputs = []types.BigfileOutput{{
 		Address: parseAddr("241352c83da002e61f57e96b14f3a5f8b5de22156ce83b753ea495e64f1affebae88736b2347"),
-		Value:   types.Siacoins(1).Mul64(1e12),
+		Value:   types.Bigfiles(1).Mul64(1e12),
 	}}
-	genesis.Transactions[0].SiafundOutputs = []types.SiafundOutput{{
+	genesis.Transactions[0].BigfundOutputs = []types.BigfundOutput{{
 		Address: parseAddr("241352c83da002e61f57e96b14f3a5f8b5de22156ce83b753ea495e64f1affebae88736b2347"),
 		Value:   10000,
 	}}

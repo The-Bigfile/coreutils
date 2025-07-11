@@ -14,13 +14,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/gateway"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils"
-	"go.sia.tech/coreutils/chain"
-	"go.sia.tech/coreutils/syncer"
-	"go.sia.tech/coreutils/testutil"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/gateway"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils"
+	"go.thebigfile.com/coreutils/chain"
+	"go.thebigfile.com/coreutils/syncer"
+	"go.thebigfile.com/coreutils/testutil"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -49,11 +49,11 @@ func getTip(tipURL string) (index types.ChainIndex, err error) {
 func defaultTipURL(network string) string {
 	switch network {
 	case "zen":
-		return "https://api.siascan.com/zen/consensus/tip"
+		return "https://api.thebigfile.com/zen/consensus/tip"
 	case "anagami":
-		return "https://api.siascan.com/anagami/consensus/tip"
+		return "https://api.thebigfile.com/anagami/consensus/tip"
 	default:
-		return "https://api.siascan.com/consensus/tip"
+		return "https://api.thebigfile.com/consensus/tip"
 	}
 }
 

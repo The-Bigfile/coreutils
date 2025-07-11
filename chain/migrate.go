@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/types"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/types"
 	"go.uber.org/zap"
 )
 
@@ -69,11 +69,11 @@ func migrateDB(dbs *DBStore, n *consensus.Network, l MigrationLogger) error {
 		for id := range dbs.db.Bucket(bFileContractElements).Iter() {
 			dbs.bucket(bFileContractElements).delete(id)
 		}
-		for id := range dbs.db.Bucket(bSiacoinElements).Iter() {
-			dbs.bucket(bSiacoinElements).delete(id)
+		for id := range dbs.db.Bucket(bBigfileElements).Iter() {
+			dbs.bucket(bBigfileElements).delete(id)
 		}
-		for id := range dbs.db.Bucket(bSiafundElements).Iter() {
-			dbs.bucket(bSiafundElements).delete(id)
+		for id := range dbs.db.Bucket(bBigfundElements).Iter() {
+			dbs.bucket(bBigfundElements).delete(id)
 		}
 		if dbs.shouldFlush() {
 			if err := dbs.Flush(); err != nil {

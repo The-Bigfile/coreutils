@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
 	"golang.org/x/net/context"
 )
 
@@ -19,8 +19,8 @@ type ElementStateStore struct {
 
 	mu                   sync.Mutex
 	tip                  types.ChainIndex
-	siacoinElements      map[types.SiacoinOutputID]types.SiacoinElement
-	siafundElements      map[types.SiafundOutputID]types.SiafundElement
+	bigfileElements      map[types.BigfileOutputID]types.BigfileElement
+	bigfundElements      map[types.BigfundOutputID]types.BigfundElement
 	fileContractElements map[types.FileContractID]types.FileContractElement
 	chainIndexElements   map[types.ChainIndex]types.ChainIndexElement
 }
@@ -45,24 +45,24 @@ func (es *ElementStateStore) Sync() error {
 				Height: cru.State.Index.Height + 1,
 				ID:     cru.Block.ID(),
 			}
-			for _, sce := range cru.SiacoinElementDiffs() {
+			for _, bige := range cru.BigfileElementDiffs() {
 				switch {
-				case sce.Created && sce.Spent:
+				case bige.Created && bige.Spent:
 					continue
-				case sce.Created:
-					delete(es.siacoinElements, sce.SiacoinElement.ID)
-				case sce.Spent:
-					es.siacoinElements[sce.SiacoinElement.ID] = sce.SiacoinElement
+				case bige.Created:
+					delete(es.bigfileElements, bige.BigfileElement.ID)
+				case bige.Spent:
+					es.bigfileElements[bige.BigfileElement.ID] = bige.BigfileElement
 				}
 			}
-			for _, sfe := range cru.SiafundElementDiffs() {
+			for _, bfe := range cru.BigfundElementDiffs() {
 				switch {
-				case sfe.Created && sfe.Spent:
+				case bfe.Created && bfe.Spent:
 					continue
-				case sfe.Created:
-					delete(es.siafundElements, sfe.SiafundElement.ID)
-				case sfe.Spent:
-					es.siafundElements[sfe.SiafundElement.ID] = sfe.SiafundElement
+				case bfe.Created:
+					delete(es.bigfundElements, bfe.BigfundElement.ID)
+				case bfe.Spent:
+					es.bigfundElements[bfe.BigfundElement.ID] = bfe.BigfundElement
 				}
 			}
 			for _, fce := range cru.FileContractElementDiffs() {
@@ -76,13 +76,13 @@ func (es *ElementStateStore) Sync() error {
 				}
 			}
 			delete(es.chainIndexElements, revertedIndex)
-			for id, sce := range es.siacoinElements {
-				cru.UpdateElementProof(&sce.StateElement)
-				es.siacoinElements[id] = sce.Copy()
+			for id, bige := range es.bigfileElements {
+				cru.UpdateElementProof(&bige.StateElement)
+				es.bigfileElements[id] = bige.Copy()
 			}
-			for id, sfe := range es.siafundElements {
-				cru.UpdateElementProof(&sfe.StateElement)
-				es.siafundElements[id] = sfe.Copy()
+			for id, bfe := range es.bigfundElements {
+				cru.UpdateElementProof(&bfe.StateElement)
+				es.bigfundElements[id] = bfe.Copy()
 			}
 			for id, fce := range es.fileContractElements {
 				cru.UpdateElementProof(&fce.StateElement)
@@ -95,24 +95,24 @@ func (es *ElementStateStore) Sync() error {
 			es.tip = cru.State.Index
 		}
 		for _, cau := range applied {
-			for _, sce := range cau.SiacoinElementDiffs() {
+			for _, bige := range cau.BigfileElementDiffs() {
 				switch {
-				case sce.Created && sce.Spent:
+				case bige.Created && bige.Spent:
 					continue
-				case sce.Created:
-					es.siacoinElements[sce.SiacoinElement.ID] = sce.SiacoinElement
-				case sce.Spent:
-					delete(es.siacoinElements, sce.SiacoinElement.ID)
+				case bige.Created:
+					es.bigfileElements[bige.BigfileElement.ID] = bige.BigfileElement
+				case bige.Spent:
+					delete(es.bigfileElements, bige.BigfileElement.ID)
 				}
 			}
-			for _, sfe := range cau.SiafundElementDiffs() {
+			for _, bfe := range cau.BigfundElementDiffs() {
 				switch {
-				case sfe.Created && sfe.Spent:
+				case bfe.Created && bfe.Spent:
 					continue
-				case sfe.Created:
-					es.siafundElements[sfe.SiafundElement.ID] = sfe.SiafundElement
-				case sfe.Spent:
-					delete(es.siafundElements, sfe.SiafundElement.ID)
+				case bfe.Created:
+					es.bigfundElements[bfe.BigfundElement.ID] = bfe.BigfundElement
+				case bfe.Spent:
+					delete(es.bigfundElements, bfe.BigfundElement.ID)
 				}
 			}
 			for _, fce := range cau.FileContractElementDiffs() {
@@ -126,13 +126,13 @@ func (es *ElementStateStore) Sync() error {
 				}
 			}
 			es.chainIndexElements[cau.State.Index] = cau.ChainIndexElement()
-			for id, sce := range es.siacoinElements {
-				cau.UpdateElementProof(&sce.StateElement)
-				es.siacoinElements[id] = sce.Copy()
+			for id, bige := range es.bigfileElements {
+				cau.UpdateElementProof(&bige.StateElement)
+				es.bigfileElements[id] = bige.Copy()
 			}
-			for id, sfe := range es.siafundElements {
-				cau.UpdateElementProof(&sfe.StateElement)
-				es.siafundElements[id] = sfe.Copy()
+			for id, bfe := range es.bigfundElements {
+				cau.UpdateElementProof(&bfe.StateElement)
+				es.bigfundElements[id] = bfe.Copy()
 			}
 			for id, fce := range es.fileContractElements {
 				cau.UpdateElementProof(&fce.StateElement)
@@ -175,34 +175,34 @@ func (es *ElementStateStore) Wait(tb testing.TB) {
 	}
 }
 
-// SiacoinElements returns a copy of all SiacoinElements in the store.
-func (es *ElementStateStore) SiacoinElements() (types.ChainIndex, []types.SiacoinElement) {
+// BigfileElements returns a copy of all BigfileElements in the store.
+func (es *ElementStateStore) BigfileElements() (types.ChainIndex, []types.BigfileElement) {
 	es.mu.Lock()
 	defer es.mu.Unlock()
-	elements := make([]types.SiacoinElement, 0, len(es.siacoinElements))
-	for _, sce := range es.siacoinElements {
-		sce.StateElement = sce.StateElement.Copy()
-		elements = append(elements, sce)
+	elements := make([]types.BigfileElement, 0, len(es.bigfileElements))
+	for _, bige := range es.bigfileElements {
+		bige.StateElement = bige.StateElement.Copy()
+		elements = append(elements, bige)
 	}
 	return es.tip, elements
 }
 
-// SiacoinElement returns the SiacoinElement with the given ID.
-func (es *ElementStateStore) SiacoinElement(id types.SiacoinOutputID) (types.ChainIndex, types.SiacoinElement, bool) {
+// BigfileElement returns the BigfileElement with the given ID.
+func (es *ElementStateStore) BigfileElement(id types.BigfileOutputID) (types.ChainIndex, types.BigfileElement, bool) {
 	es.mu.Lock()
 	defer es.mu.Unlock()
-	sce, ok := es.siacoinElements[id]
-	sce.StateElement = sce.StateElement.Copy()
-	return es.tip, sce, ok
+	bige, ok := es.bigfileElements[id]
+	bige.StateElement = bige.StateElement.Copy()
+	return es.tip, bige, ok
 }
 
-// SiafundElement returns the SiafundElement with the given ID.
-func (es *ElementStateStore) SiafundElement(id types.SiafundOutputID) (types.ChainIndex, types.SiafundElement, bool) {
+// BigfundElement returns the BigfundElement with the given ID.
+func (es *ElementStateStore) BigfundElement(id types.BigfundOutputID) (types.ChainIndex, types.BigfundElement, bool) {
 	es.mu.Lock()
 	defer es.mu.Unlock()
-	sfe, ok := es.siafundElements[id]
-	sfe.StateElement = sfe.StateElement.Copy()
-	return es.tip, sfe, ok
+	bfe, ok := es.bigfundElements[id]
+	bfe.StateElement = bfe.StateElement.Copy()
+	return es.tip, bfe, ok
 }
 
 // FileContractElement returns the FileContractElement with the given ID.
@@ -227,8 +227,8 @@ func (es *ElementStateStore) ChainIndexElement(index types.ChainIndex) (types.Ch
 func NewElementStateStore(tb testing.TB, cm *chain.Manager) *ElementStateStore {
 	store := &ElementStateStore{
 		chain:                cm,
-		siacoinElements:      make(map[types.SiacoinOutputID]types.SiacoinElement),
-		siafundElements:      make(map[types.SiafundOutputID]types.SiafundElement),
+		bigfileElements:      make(map[types.BigfileOutputID]types.BigfileElement),
+		bigfundElements:      make(map[types.BigfundOutputID]types.BigfundElement),
 		fileContractElements: make(map[types.FileContractID]types.FileContractElement),
 		chainIndexElements:   make(map[types.ChainIndex]types.ChainIndexElement),
 	}

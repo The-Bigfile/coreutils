@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	"go.sia.tech/core/gateway"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/threadgroup"
+	"go.thebigfile.com/core/consensus"
+	"go.thebigfile.com/core/gateway"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/threadgroup"
 	"go.uber.org/zap"
 	"lukechampine.com/frand"
 )

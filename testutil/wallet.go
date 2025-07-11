@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/wallet"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/wallet"
 )
 
 // An EphemeralWalletStore is a Store that does not persist its state to disk. It is
@@ -18,8 +18,8 @@ type (
 	EphemeralWalletStore struct {
 		mu          sync.Mutex
 		tip         types.ChainIndex
-		utxos       map[types.SiacoinOutputID]types.SiacoinElement
-		locked      map[types.SiacoinOutputID]time.Time
+		utxos       map[types.BigfileOutputID]types.BigfileElement
+		locked      map[types.BigfileOutputID]time.Time
 		events      []wallet.Event
 		broadcasted []wallet.BroadcastedSet
 	}
@@ -38,10 +38,10 @@ func (et *ephemeralWalletUpdateTxn) WalletStateElements() (elements []types.Stat
 	return
 }
 
-// UpdateWalletSiacoinElementProofs updates the proofs of all state elements
+// UpdateWalletBigfileElementProofs updates the proofs of all state elements
 // affected by the update. ProofUpdater.UpdateElementProof must be called
 // for each state element in the database.
-func (et *ephemeralWalletUpdateTxn) UpdateWalletSiacoinElementProofs(pu wallet.ProofUpdater) error {
+func (et *ephemeralWalletUpdateTxn) UpdateWalletBigfileElementProofs(pu wallet.ProofUpdater) error {
 	for _, se := range et.store.utxos {
 		pu.UpdateElementProof(&se.StateElement)
 		et.store.utxos[se.ID] = se.Move()
@@ -49,14 +49,14 @@ func (et *ephemeralWalletUpdateTxn) UpdateWalletSiacoinElementProofs(pu wallet.P
 	return nil
 }
 
-func (et *ephemeralWalletUpdateTxn) WalletApplyIndex(index types.ChainIndex, created, spent []types.SiacoinElement, events []wallet.Event, _ time.Time) error {
+func (et *ephemeralWalletUpdateTxn) WalletApplyIndex(index types.ChainIndex, created, spent []types.BigfileElement, events []wallet.Event, _ time.Time) error {
 	for _, se := range spent {
 		if _, ok := et.store.utxos[se.ID]; !ok {
-			panic(fmt.Sprintf("siacoin element %q does not exist", se.ID))
+			panic(fmt.Sprintf("bigfile element %q does not exist", se.ID))
 		}
 		delete(et.store.utxos, se.ID)
 	}
-	// add siacoin elements
+	// add bigfile elements
 	for _, se := range created {
 		if _, ok := et.store.utxos[se.ID]; ok {
 			panic("duplicate element")
@@ -70,7 +70,7 @@ func (et *ephemeralWalletUpdateTxn) WalletApplyIndex(index types.ChainIndex, cre
 	return nil
 }
 
-func (et *ephemeralWalletUpdateTxn) WalletRevertIndex(index types.ChainIndex, removed, unspent []types.SiacoinElement, _ time.Time) error {
+func (et *ephemeralWalletUpdateTxn) WalletRevertIndex(index types.ChainIndex, removed, unspent []types.BigfileElement, _ time.Time) error {
 	// remove any events that were added in the reverted block
 	filtered := et.store.events[:0]
 	for i := range et.store.events {
@@ -81,12 +81,12 @@ func (et *ephemeralWalletUpdateTxn) WalletRevertIndex(index types.ChainIndex, re
 	}
 	et.store.events = filtered
 
-	// remove any siacoin elements that were added in the reverted block
+	// remove any bigfile elements that were added in the reverted block
 	for _, se := range removed {
 		delete(et.store.utxos, se.ID)
 	}
 
-	// readd any siacoin elements that were spent in the reverted block
+	// readd any bigfile elements that were spent in the reverted block
 	for _, se := range unspent {
 		et.store.utxos[se.ID] = se.Copy()
 	}
@@ -131,9 +131,9 @@ func (es *EphemeralWalletStore) WalletEventCount() (uint64, error) {
 	return uint64(len(es.events)), nil
 }
 
-// UnspentSiacoinElements returns the wallet's unspent siacoin outputs as well
+// UnspentBigfileElements returns the wallet's unspent bigfile outputs as well
 // as the last indexed tip of the wallet.
-func (es *EphemeralWalletStore) UnspentSiacoinElements() (tip types.ChainIndex, utxos []types.SiacoinElement, _ error) {
+func (es *EphemeralWalletStore) UnspentBigfileElements() (tip types.ChainIndex, utxos []types.BigfileElement, _ error) {
 	es.mu.Lock()
 	defer es.mu.Unlock()
 
@@ -150,8 +150,8 @@ func (es *EphemeralWalletStore) Tip() (types.ChainIndex, error) {
 	return es.tip, nil
 }
 
-// LockUTXOs locks the siacoin outputs with the given ids.
-func (es *EphemeralWalletStore) LockUTXOs(ids []types.SiacoinOutputID, expiration time.Time) error {
+// LockUTXOs locks the bigfile outputs with the given ids.
+func (es *EphemeralWalletStore) LockUTXOs(ids []types.BigfileOutputID, expiration time.Time) error {
 	es.mu.Lock()
 	defer es.mu.Unlock()
 	for _, id := range ids {
@@ -160,8 +160,8 @@ func (es *EphemeralWalletStore) LockUTXOs(ids []types.SiacoinOutputID, expiratio
 	return nil
 }
 
-// ReleaseUTXOs unlocks the siacoin outputs with the given ids.
-func (es *EphemeralWalletStore) ReleaseUTXOs(ids []types.SiacoinOutputID) error {
+// ReleaseUTXOs unlocks the bigfile outputs with the given ids.
+func (es *EphemeralWalletStore) ReleaseUTXOs(ids []types.BigfileOutputID) error {
 	es.mu.Lock()
 	defer es.mu.Unlock()
 	for _, id := range ids {
@@ -170,13 +170,13 @@ func (es *EphemeralWalletStore) ReleaseUTXOs(ids []types.SiacoinOutputID) error 
 	return nil
 }
 
-// LockedUTXOs returns the wallet's locked siacoin outputs.
-// The returned ids are the ids of the locked siacoin outputs that have
+// LockedUTXOs returns the wallet's locked bigfile outputs.
+// The returned ids are the ids of the locked bigfile outputs that have
 // not expired.
-func (es *EphemeralWalletStore) LockedUTXOs(ts time.Time) ([]types.SiacoinOutputID, error) {
+func (es *EphemeralWalletStore) LockedUTXOs(ts time.Time) ([]types.BigfileOutputID, error) {
 	es.mu.Lock()
 	defer es.mu.Unlock()
-	ids := make([]types.SiacoinOutputID, 0, len(es.locked))
+	ids := make([]types.BigfileOutputID, 0, len(es.locked))
 	for id, expiration := range es.locked {
 		if expiration.After(ts) {
 			ids = append(ids, id)
@@ -223,7 +223,7 @@ func (es *EphemeralWalletStore) RemoveBroadcastedSet(set wallet.BroadcastedSet) 
 // NewEphemeralWalletStore returns a new EphemeralWalletStore.
 func NewEphemeralWalletStore() *EphemeralWalletStore {
 	return &EphemeralWalletStore{
-		utxos:  make(map[types.SiacoinOutputID]types.SiacoinElement),
-		locked: make(map[types.SiacoinOutputID]time.Time),
+		utxos:  make(map[types.BigfileOutputID]types.BigfileElement),
+		locked: make(map[types.BigfileOutputID]time.Time),
 	}
 }

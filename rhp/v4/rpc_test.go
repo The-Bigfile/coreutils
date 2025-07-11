@@ -12,15 +12,15 @@ import (
 	"testing"
 	"time"
 
-	"go.sia.tech/core/consensus"
-	proto4 "go.sia.tech/core/rhp/v4"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
-	rhp4 "go.sia.tech/coreutils/rhp/v4"
-	"go.sia.tech/coreutils/rhp/v4/quic"
-	"go.sia.tech/coreutils/rhp/v4/siamux"
-	"go.sia.tech/coreutils/testutil"
-	"go.sia.tech/coreutils/wallet"
+	"go.thebigfile.com/core/consensus"
+	proto4 "go.thebigfile.com/core/rhp/v4"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
+	rhp4 "go.thebigfile.com/coreutils/rhp/v4"
+	"go.thebigfile.com/coreutils/rhp/v4/bigfilemux"
+	"go.thebigfile.com/coreutils/rhp/v4/quic"
+	"go.thebigfile.com/coreutils/testutil"
+	"go.thebigfile.com/coreutils/wallet"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 	"lukechampine.com/frand"
@@ -67,11 +67,11 @@ func (fs *fundAndSign) Address() types.Address {
 	return fs.w.Address()
 }
 
-func testRenterHostPairSiaMux(tb testing.TB, hostKey types.PrivateKey, cm rhp4.ChainManager, w rhp4.Wallet, c rhp4.Contractor, sr rhp4.Settings, ss rhp4.Sectors, log *zap.Logger) rhp4.TransportClient {
+func testRenterHostPairBigfileMux(tb testing.TB, hostKey types.PrivateKey, cm rhp4.ChainManager, w rhp4.Wallet, c rhp4.Contractor, sr rhp4.Settings, ss rhp4.Sectors, log *zap.Logger) rhp4.TransportClient {
 	rs := rhp4.NewServer(hostKey, cm, c, w, sr, ss, rhp4.WithPriceTableValidity(2*time.Minute))
-	hostAddr := testutil.ServeSiaMux(tb, rs, log.Named("siamux"))
+	hostAddr := testutil.ServeBigfileMux(tb, rs, log.Named("bigfilemux"))
 
-	transport, err := siamux.Dial(context.Background(), hostAddr, hostKey.PublicKey())
+	transport, err := bigfilemux.Dial(context.Background(), hostAddr, hostKey.PublicKey())
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -209,12 +209,12 @@ func TestFormContract(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -231,7 +231,7 @@ func TestFormContract(t *testing.T) {
 		}
 
 		fundAndSign := &fundAndSign{w, renterKey}
-		renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+		renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 		result, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 			RenterPublicKey: renterKey.PublicKey(),
 			RenterAddress:   w.Address(),
@@ -258,8 +258,8 @@ func TestFormContract(t *testing.T) {
 		}
 	}
 
-	t.Run("siamux", func(t *testing.T) {
-		transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	t.Run("bigfilemux", func(t *testing.T) {
+		transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
 		testFormContract(t, transport)
 	})
 
@@ -270,7 +270,7 @@ func TestFormContract(t *testing.T) {
 }
 
 func TestFormContractBasis(t *testing.T) {
-	t.Run("siamux", func(t *testing.T) {
+	t.Run("bigfilemux", func(t *testing.T) {
 		n, genesis := testutil.V2Network()
 		hostKey, renterKey := types.GeneratePrivateKey(), types.GeneratePrivateKey()
 
@@ -317,12 +317,12 @@ func TestFormContractBasis(t *testing.T) {
 			Release:             "test",
 			AcceptingContracts:  true,
 			WalletAddress:       w1.Address(),
-			MaxCollateral:       types.Siacoins(10000),
+			MaxCollateral:       types.Bigfiles(10000),
 			MaxContractDuration: 1000,
 			RemainingStorage:    100 * proto4.SectorSize,
 			TotalStorage:        100 * proto4.SectorSize,
 			Prices: proto4.HostPrices{
-				ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+				ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 				StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 				IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 				EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -332,7 +332,7 @@ func TestFormContractBasis(t *testing.T) {
 		ss := testutil.NewEphemeralSectorStore()
 		c := testutil.NewEphemeralContractor(cm1)
 
-		transport := testRenterHostPairSiaMux(t, hostKey, cm1, w1, c, sr, ss, zap.NewNop())
+		transport := testRenterHostPairBigfileMux(t, hostKey, cm1, w1, c, sr, ss, zap.NewNop())
 
 		settings, err := rhp4.RPCSettings(context.Background(), transport)
 		if err != nil {
@@ -411,12 +411,12 @@ func TestFormContractBasis(t *testing.T) {
 			Release:             "test",
 			AcceptingContracts:  true,
 			WalletAddress:       w1.Address(),
-			MaxCollateral:       types.Siacoins(10000),
+			MaxCollateral:       types.Bigfiles(10000),
 			MaxContractDuration: 1000,
 			RemainingStorage:    100 * proto4.SectorSize,
 			TotalStorage:        100 * proto4.SectorSize,
 			Prices: proto4.HostPrices{
-				ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+				ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 				StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 				IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 				EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -472,12 +472,12 @@ func TestRPCRefresh(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -487,7 +487,7 @@ func TestRPCRefresh(t *testing.T) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -555,7 +555,7 @@ func TestRPCRefresh(t *testing.T) {
 	}
 
 	t.Run("no allowance or collateral", func(t *testing.T) {
-		revision := formContractUploadSector(t, types.Siacoins(100), types.Siacoins(200), types.Siacoins(25))
+		revision := formContractUploadSector(t, types.Bigfiles(100), types.Bigfiles(200), types.Bigfiles(25))
 
 		// refresh the contract
 		_, err = rhp4.RPCRefreshContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, revision.Revision, proto4.RPCRefreshContractParams{
@@ -571,12 +571,12 @@ func TestRPCRefresh(t *testing.T) {
 	})
 
 	t.Run("valid refresh", func(t *testing.T) {
-		revision := formContractUploadSector(t, types.Siacoins(100), types.Siacoins(200), types.Siacoins(25))
+		revision := formContractUploadSector(t, types.Bigfiles(100), types.Bigfiles(200), types.Bigfiles(25))
 		// refresh the contract
 		refreshResult, err := rhp4.RPCRefreshContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, revision.Revision, proto4.RPCRefreshContractParams{
 			ContractID: revision.ID,
-			Allowance:  types.Siacoins(10),
-			Collateral: types.Siacoins(20),
+			Allowance:  types.Bigfiles(10),
+			Collateral: types.Bigfiles(20),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -620,12 +620,12 @@ func TestRPCRenew(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -635,7 +635,7 @@ func TestRPCRenew(t *testing.T) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -700,13 +700,13 @@ func TestRPCRenew(t *testing.T) {
 	}
 
 	t.Run("same duration", func(t *testing.T) {
-		revision := formContractUploadSector(t, types.Siacoins(100), types.Siacoins(200), types.Siacoins(25))
+		revision := formContractUploadSector(t, types.Bigfiles(100), types.Bigfiles(200), types.Bigfiles(25))
 
 		// renew the contract
 		_, err = rhp4.RPCRenewContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, revision.Revision, proto4.RPCRenewContractParams{
 			ContractID:  revision.ID,
-			Allowance:   types.Siacoins(150),
-			Collateral:  types.Siacoins(300),
+			Allowance:   types.Bigfiles(150),
+			Collateral:  types.Bigfiles(300),
 			ProofHeight: revision.Revision.ProofHeight,
 		})
 		if err == nil {
@@ -717,13 +717,13 @@ func TestRPCRenew(t *testing.T) {
 	})
 
 	t.Run("partial rollover", func(t *testing.T) {
-		revision := formContractUploadSector(t, types.Siacoins(100), types.Siacoins(200), types.Siacoins(25))
+		revision := formContractUploadSector(t, types.Bigfiles(100), types.Bigfiles(200), types.Bigfiles(25))
 
 		// renew the contract
 		renewResult, err := rhp4.RPCRenewContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, revision.Revision, proto4.RPCRenewContractParams{
 			ContractID:  revision.ID,
-			Allowance:   types.Siacoins(150),
-			Collateral:  types.Siacoins(300),
+			Allowance:   types.Bigfiles(150),
+			Collateral:  types.Bigfiles(300),
 			ProofHeight: revision.Revision.ProofHeight + 10,
 		})
 		if err != nil {
@@ -755,13 +755,13 @@ func TestRPCRenew(t *testing.T) {
 	})
 
 	t.Run("full rollover", func(t *testing.T) {
-		revision := formContractUploadSector(t, types.Siacoins(100), types.Siacoins(200), types.Siacoins(25))
+		revision := formContractUploadSector(t, types.Bigfiles(100), types.Bigfiles(200), types.Bigfiles(25))
 
 		// renew the contract
 		renewResult, err := rhp4.RPCRenewContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, revision.Revision, proto4.RPCRenewContractParams{
 			ContractID:  revision.ID,
-			Allowance:   types.Siacoins(50),
-			Collateral:  types.Siacoins(100),
+			Allowance:   types.Bigfiles(50),
+			Collateral:  types.Bigfiles(100),
 			ProofHeight: revision.Revision.ProofHeight + 10,
 		})
 		if err != nil {
@@ -793,13 +793,13 @@ func TestRPCRenew(t *testing.T) {
 	})
 
 	t.Run("no rollover", func(t *testing.T) {
-		revision := formContractUploadSector(t, types.Siacoins(100), types.Siacoins(200), types.Siacoins(25))
+		revision := formContractUploadSector(t, types.Bigfiles(100), types.Bigfiles(200), types.Bigfiles(25))
 
 		// renew the contract
 		renewResult, err := rhp4.RPCRenewContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, revision.Revision, proto4.RPCRenewContractParams{
 			ContractID:  revision.ID,
-			Allowance:   types.Siacoins(150),
-			Collateral:  types.Siacoins(300),
+			Allowance:   types.Bigfiles(150),
+			Collateral:  types.Bigfiles(300),
 			ProofHeight: revision.Revision.ProofHeight + 10,
 		})
 		if err != nil {
@@ -856,9 +856,9 @@ func TestRPCTimeout(t *testing.T) {
 		}
 	}
 
-	t.Run("siamux", func(t *testing.T) {
+	t.Run("bigfilemux", func(t *testing.T) {
 		sr := &blockingSettingsReporter{blockChan: make(chan struct{})}
-		transport := testRenterHostPairSiaMux(t, types.GeneratePrivateKey(), cm, w, c, sr, ss, zap.NewNop())
+		transport := testRenterHostPairBigfileMux(t, types.GeneratePrivateKey(), cm, w, c, sr, ss, zap.NewNop())
 		assertRPCTimeout(transport, true)
 		sr.Unblock()
 		assertRPCTimeout(transport, false)
@@ -873,7 +873,7 @@ func TestRPCTimeout(t *testing.T) {
 	})
 }
 
-func TestSiamuxDialUpgradeTimeout(t *testing.T) {
+func TestBigfilemuxDialUpgradeTimeout(t *testing.T) {
 	n, genesis := testutil.V2Network()
 	cm, w := startTestNode(t, n, genesis)
 
@@ -888,12 +888,12 @@ func TestSiamuxDialUpgradeTimeout(t *testing.T) {
 	sr := testutil.NewEphemeralSettingsReporter()
 	hk := types.GeneratePrivateKey()
 	rs := rhp4.NewServer(hk, cm, c, w, sr, ss, rhp4.WithPriceTableValidity(2*time.Minute))
-	hostAddr := testutil.ServeSiaMux(t, rs, zap.NewNop())
+	hostAddr := testutil.ServeBigfileMux(t, rs, zap.NewNop())
 
 	t.Run("dial", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		_, err := siamux.Dial(ctx, hostAddr, hk.PublicKey())
+		_, err := bigfilemux.Dial(ctx, hostAddr, hk.PublicKey())
 		if !isTimeoutErr(err) {
 			t.Fatal(err)
 		}
@@ -908,7 +908,7 @@ func TestSiamuxDialUpgradeTimeout(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		_, err = siamux.Upgrade(ctx, conn, hk.PublicKey())
+		_, err = bigfilemux.Upgrade(ctx, conn, hk.PublicKey())
 		if !isTimeoutErr(err) {
 			t.Fatal(err)
 		}
@@ -929,12 +929,12 @@ func TestRPCReplenishAccounts(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -944,7 +944,7 @@ func TestRPCReplenishAccounts(t *testing.T) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zaptest.NewLogger(t))
+	transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zaptest.NewLogger(t))
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -952,7 +952,7 @@ func TestRPCReplenishAccounts(t *testing.T) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(1000), types.Siacoins(2000)
+	renterAllowance, hostCollateral := types.Bigfiles(1000), types.Bigfiles(2000)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -981,25 +981,25 @@ func TestRPCReplenishAccounts(t *testing.T) {
 
 	var deposits []proto4.AccountDeposit
 	for i := 0; i < 10; i++ {
-		// fund an account with random values below 1SC
+		// fund an account with random values below 1BIG
 		account1 := frand.Entropy256()
 		deposits = append(deposits, proto4.AccountDeposit{
 			Account: account1,
 			Amount:  types.NewCurrency64(frand.Uint64n(math.MaxUint64)),
 		})
 
-		// fund an account with 1SC
+		// fund an account with 1BIG
 		account2 := frand.Entropy256()
 		deposits = append(deposits, proto4.AccountDeposit{
 			Account: account2,
-			Amount:  types.Siacoins(1),
+			Amount:  types.Bigfiles(1),
 		})
 
-		// fund an account with > 1SC
+		// fund an account with > 1BIG
 		account3 := frand.Entropy256()
 		deposits = append(deposits, proto4.AccountDeposit{
 			Account: account3,
-			Amount:  types.Siacoins(1 + uint32(frand.Uint64n(5))),
+			Amount:  types.Bigfiles(1 + uint32(frand.Uint64n(5))),
 		})
 	}
 
@@ -1031,7 +1031,7 @@ func TestRPCReplenishAccounts(t *testing.T) {
 
 	replenishParams := rhp4.RPCReplenishAccountsParams{
 		Contract: revision,
-		Target:   types.Siacoins(1),
+		Target:   types.Bigfiles(1),
 	}
 	var expectedCost types.Currency
 	for _, balance := range balances {
@@ -1077,7 +1077,7 @@ func TestRPCReplenishAccounts(t *testing.T) {
 				t.Fatalf("expected %v, got %v", replenishParams.Target, balance)
 			}
 		} else if !balance.Equals(account.Balance) {
-			// balances that were already >= 1SC should not have changed
+			// balances that were already >= 1BIG should not have changed
 			t.Fatalf("expected %v, got %v", account.Balance, balance)
 		}
 	}
@@ -1130,12 +1130,12 @@ func TestAccounts(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -1145,7 +1145,7 @@ func TestAccounts(t *testing.T) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -1153,7 +1153,7 @@ func TestAccounts(t *testing.T) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+	renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -1182,7 +1182,7 @@ func TestAccounts(t *testing.T) {
 		t.Fatal("expected zero balance")
 	}
 
-	accountFundAmount := types.Siacoins(25)
+	accountFundAmount := types.Bigfiles(25)
 	fundResult, err := rhp4.RPCFundAccounts(context.Background(), transport, cs, renterKey, revision, []proto4.AccountDeposit{
 		{Account: account, Amount: accountFundAmount},
 	})
@@ -1249,12 +1249,12 @@ func TestReadWriteSector(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -1264,7 +1264,7 @@ func TestReadWriteSector(t *testing.T) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -1272,7 +1272,7 @@ func TestReadWriteSector(t *testing.T) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+	renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -1288,7 +1288,7 @@ func TestReadWriteSector(t *testing.T) {
 	cs := cm.TipState()
 	account := proto4.Account(renterKey.PublicKey())
 
-	accountFundAmount := types.Siacoins(25)
+	accountFundAmount := types.Bigfiles(25)
 	fundResult, err := rhp4.RPCFundAccounts(context.Background(), transport, cs, renterKey, revision, []proto4.AccountDeposit{
 		{Account: account, Amount: accountFundAmount},
 	})
@@ -1336,12 +1336,12 @@ func TestAppendSectors(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -1351,7 +1351,7 @@ func TestAppendSectors(t *testing.T) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -1359,7 +1359,7 @@ func TestAppendSectors(t *testing.T) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+	renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -1405,7 +1405,7 @@ func TestAppendSectors(t *testing.T) {
 	cs := cm.TipState()
 	account := proto4.Account(renterKey.PublicKey())
 
-	accountFundAmount := types.Siacoins(25)
+	accountFundAmount := types.Bigfiles(25)
 	fundResult, err := rhp4.RPCFundAccounts(context.Background(), transport, cs, renterKey, revision, []proto4.AccountDeposit{
 		{Account: account, Amount: accountFundAmount},
 	})
@@ -1487,12 +1487,12 @@ func TestVerifySector(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -1502,7 +1502,7 @@ func TestVerifySector(t *testing.T) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -1510,7 +1510,7 @@ func TestVerifySector(t *testing.T) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+	renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -1526,7 +1526,7 @@ func TestVerifySector(t *testing.T) {
 	cs := cm.TipState()
 	account := proto4.Account(renterKey.PublicKey())
 
-	accountFundAmount := types.Siacoins(25)
+	accountFundAmount := types.Bigfiles(25)
 	fundResult, err := rhp4.RPCFundAccounts(context.Background(), transport, cs, renterKey, revision, []proto4.AccountDeposit{
 		{Account: account, Amount: accountFundAmount},
 	})
@@ -1571,12 +1571,12 @@ func TestRPCFreeSectors(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -1586,7 +1586,7 @@ func TestRPCFreeSectors(t *testing.T) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -1594,7 +1594,7 @@ func TestRPCFreeSectors(t *testing.T) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+	renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -1613,7 +1613,7 @@ func TestRPCFreeSectors(t *testing.T) {
 	cs := cm.TipState()
 	account := proto4.Account(renterKey.PublicKey())
 
-	accountFundAmount := types.Siacoins(25)
+	accountFundAmount := types.Bigfiles(25)
 	fundResult, err := rhp4.RPCFundAccounts(context.Background(), transport, cs, renterKey, revision, []proto4.AccountDeposit{
 		{Account: account, Amount: accountFundAmount},
 	})
@@ -1703,12 +1703,12 @@ func TestRPCSectorRoots(t *testing.T) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -1718,7 +1718,7 @@ func TestRPCSectorRoots(t *testing.T) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(t, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -1726,7 +1726,7 @@ func TestRPCSectorRoots(t *testing.T) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+	renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -1745,7 +1745,7 @@ func TestRPCSectorRoots(t *testing.T) {
 	cs := cm.TipState()
 	account := proto4.Account(renterKey.PublicKey())
 
-	accountFundAmount := types.Siacoins(25)
+	accountFundAmount := types.Bigfiles(25)
 	fundResult, err := rhp4.RPCFundAccounts(context.Background(), transport, cs, renterKey, revision, []proto4.AccountDeposit{
 		{Account: account, Amount: accountFundAmount},
 	})
@@ -1817,12 +1817,12 @@ func BenchmarkWrite(b *testing.B) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -1832,7 +1832,7 @@ func BenchmarkWrite(b *testing.B) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(b, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(b, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -1840,7 +1840,7 @@ func BenchmarkWrite(b *testing.B) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+	renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -1856,7 +1856,7 @@ func BenchmarkWrite(b *testing.B) {
 	// fund an account
 	cs := cm.TipState()
 	account := proto4.Account(renterKey.PublicKey())
-	accountFundAmount := types.Siacoins(25)
+	accountFundAmount := types.Bigfiles(25)
 	fundResult, err := rhp4.RPCFundAccounts(context.Background(), transport, cs, renterKey, revision, []proto4.AccountDeposit{
 		{Account: account, Amount: accountFundAmount},
 	})
@@ -1900,12 +1900,12 @@ func BenchmarkRead(b *testing.B) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -1915,7 +1915,7 @@ func BenchmarkRead(b *testing.B) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(b, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(b, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -1923,7 +1923,7 @@ func BenchmarkRead(b *testing.B) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+	renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -1939,7 +1939,7 @@ func BenchmarkRead(b *testing.B) {
 	// fund an account
 	cs := cm.TipState()
 	account := proto4.Account(renterKey.PublicKey())
-	accountFundAmount := types.Siacoins(25)
+	accountFundAmount := types.Bigfiles(25)
 	fundResult, err := rhp4.RPCFundAccounts(context.Background(), transport, cs, renterKey, revision, []proto4.AccountDeposit{
 		{Account: account, Amount: accountFundAmount},
 	})
@@ -1995,12 +1995,12 @@ func BenchmarkContractUpload(b *testing.B) {
 		Release:             "test",
 		AcceptingContracts:  true,
 		WalletAddress:       w.Address(),
-		MaxCollateral:       types.Siacoins(10000),
+		MaxCollateral:       types.Bigfiles(10000),
 		MaxContractDuration: 1000,
 		RemainingStorage:    100 * proto4.SectorSize,
 		TotalStorage:        100 * proto4.SectorSize,
 		Prices: proto4.HostPrices{
-			ContractPrice: types.Siacoins(1).Div64(5), // 0.2 SC
+			ContractPrice: types.Bigfiles(1).Div64(5), // 0.2 BIG
 			StoragePrice:  types.NewCurrency64(100),   // 100 H / byte / block
 			IngressPrice:  types.NewCurrency64(100),   // 100 H / byte
 			EgressPrice:   types.NewCurrency64(100),   // 100 H / byte
@@ -2010,7 +2010,7 @@ func BenchmarkContractUpload(b *testing.B) {
 	ss := testutil.NewEphemeralSectorStore()
 	c := testutil.NewEphemeralContractor(cm)
 
-	transport := testRenterHostPairSiaMux(b, hostKey, cm, w, c, sr, ss, zap.NewNop())
+	transport := testRenterHostPairBigfileMux(b, hostKey, cm, w, c, sr, ss, zap.NewNop())
 
 	settings, err := rhp4.RPCSettings(context.Background(), transport)
 	if err != nil {
@@ -2018,7 +2018,7 @@ func BenchmarkContractUpload(b *testing.B) {
 	}
 
 	fundAndSign := &fundAndSign{w, renterKey}
-	renterAllowance, hostCollateral := types.Siacoins(100), types.Siacoins(200)
+	renterAllowance, hostCollateral := types.Bigfiles(100), types.Bigfiles(200)
 	formResult, err := rhp4.RPCFormContract(context.Background(), transport, cm, fundAndSign, cm.TipState(), settings.Prices, hostKey.PublicKey(), settings.WalletAddress, proto4.RPCFormContractParams{
 		RenterPublicKey: renterKey.PublicKey(),
 		RenterAddress:   w.Address(),
@@ -2034,7 +2034,7 @@ func BenchmarkContractUpload(b *testing.B) {
 	// fund an account
 	cs := cm.TipState()
 	account := proto4.Account(renterKey.PublicKey())
-	accountFundAmount := types.Siacoins(25)
+	accountFundAmount := types.Bigfiles(25)
 	fundResult, err := rhp4.RPCFundAccounts(context.Background(), transport, cs, renterKey, revision, []proto4.AccountDeposit{
 		{Account: account, Amount: accountFundAmount},
 	})

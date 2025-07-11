@@ -12,13 +12,13 @@ import (
 	"sync"
 	"testing"
 
-	"go.sia.tech/core/consensus"
-	proto4 "go.sia.tech/core/rhp/v4"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
-	rhp4 "go.sia.tech/coreutils/rhp/v4"
-	"go.sia.tech/coreutils/rhp/v4/quic"
-	"go.sia.tech/coreutils/rhp/v4/siamux"
+	"go.thebigfile.com/core/consensus"
+	proto4 "go.thebigfile.com/core/rhp/v4"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
+	rhp4 "go.thebigfile.com/coreutils/rhp/v4"
+	"go.thebigfile.com/coreutils/rhp/v4/bigfilemux"
+	"go.thebigfile.com/coreutils/rhp/v4/quic"
 	"go.uber.org/zap"
 	"lukechampine.com/frand"
 )
@@ -398,15 +398,15 @@ func (esr *EphemeralSettingsReporter) Update(settings proto4.HostSettings) {
 	esr.settings = settings
 }
 
-// ServeSiaMux starts a RHP4 host listening on a random port and returns the address.
-func ServeSiaMux(tb testing.TB, s *rhp4.Server, log *zap.Logger) string {
+// ServeBigfileMux starts a RHP4 host listening on a random port and returns the address.
+func ServeBigfileMux(tb testing.TB, s *rhp4.Server, log *zap.Logger) string {
 	l, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		tb.Fatal(err)
 	}
 	tb.Cleanup(func() { l.Close() })
 
-	go siamux.Serve(l, s, log)
+	go bigfilemux.Serve(l, s, log)
 	return l.Addr().String()
 }
 

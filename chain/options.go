@@ -1,7 +1,7 @@
 package chain
 
 import (
-	"go.sia.tech/core/types"
+	"go.thebigfile.com/core/types"
 	"go.uber.org/zap"
 )
 

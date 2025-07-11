@@ -12,9 +12,9 @@ import (
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
-	"go.sia.tech/core/types"
-	"go.sia.tech/coreutils/chain"
-	rhp4 "go.sia.tech/coreutils/rhp/v4"
+	"go.thebigfile.com/core/types"
+	"go.thebigfile.com/coreutils/chain"
+	rhp4 "go.thebigfile.com/coreutils/rhp/v4"
 	"go.uber.org/zap"
 	"lukechampine.com/frand"
 )
@@ -24,7 +24,7 @@ const (
 	Protocol chain.Protocol = "quic"
 
 	// TLSNextProtoRHP4 is the ALPN identifier for the Quic RHP4 protocol.
-	TLSNextProtoRHP4 = "sia/rhp4"
+	TLSNextProtoRHP4 = "bigfile/rhp4"
 )
 
 type (
@@ -203,7 +203,7 @@ func Serve(l *quic.Listener, s *rhp4.Server, log *zap.Logger) {
 	defer wts.Close()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/sia/rhp/v4", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/bigfile/rhp/v4", func(w http.ResponseWriter, r *http.Request) {
 		sess, err := wts.Upgrade(w, r)
 		if err != nil {
 			log.Debug("webtransport upgrade failed", zap.Error(err))
